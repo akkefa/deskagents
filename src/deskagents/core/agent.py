@@ -9,7 +9,7 @@ import asyncio
 import contextvars
 import inspect
 import logging
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any, Protocol
 
 from deepseek_cordis import Context, Fiber, FiberState, Service, current_context
@@ -29,6 +29,10 @@ class Agent(Protocol):
     def status(self) -> str: ...
 
     def cancel(self, reason: Mapping[str, Any] | None = None) -> None: ...
+
+    async def when_idle(self) -> None: ...
+
+    def run_maintenance(self, job: Callable[[Any], Awaitable[Any]]) -> asyncio.Future[Any]: ...
 
 
 def _same_selection(left: Mapping[str, Any] | None, right: Mapping[str, Any] | None) -> bool:

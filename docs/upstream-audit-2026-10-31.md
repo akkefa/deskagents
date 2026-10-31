@@ -95,10 +95,13 @@ materialization. Upstream cases from `tool-calls.spec.ts`, `tools.spec.ts`,
 `cancel.spec.ts` and `retry.spec.ts` cover each change. The compatibility catalog now
 contains 837 cases from 94 upstream spec files.
 
-Still open from that review: the plugin contract only runs a family's own probes, so it
-does not detect a leak by itself; most agent-loop, tools and DeepSeek adapter cases are
-not yet ported; and the host protocol (`typert`, `api/*`) that upstream UIs use has no
-Python plan.
+A follow-up added upstream's `runMaintenance` as `run_maintenance`, which the compaction
+and subagent families need, and made the plugin contract compare the host before
+mounting and after unloading, with a remount, so it catches leaks by itself.
+
+Still open from that review: most agent-loop, tools and DeepSeek adapter cases are not
+yet ported; several packages labelled `ported` have few mapped upstream cases; and the
+host protocol (`typert`, `api/*`) that upstream UIs use has no Python plan.
 
 ## Tracking
 

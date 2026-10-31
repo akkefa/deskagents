@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncIterable, Callable, Mapping, Sequence
-from typing import Any, cast
+from collections.abc import AsyncIterable, Awaitable, Callable, Mapping, Sequence
+from typing import Any, TypeVar, cast
 
 from deepseek_cordis import Context, Service
 
@@ -52,6 +52,8 @@ from deskagents.session.persistence import SessionHandle, SessionPersistence
 from deskagents.util.abort import AbortController, AbortSignal, abortable
 
 DEFAULT_MAX_PARALLEL_TOOL_CALLS = 10
+
+T = TypeVar("T")
 
 
 def inbox_state(session: Session) -> dict[str, list[Mapping[str, Any]]]:
@@ -254,6 +256,8 @@ class ReactLoopAgent:
         self.inbox = ReactLoopInbox(session, self.dispatch)
         self._task: asyncio.Task[None] | None = None
         self._abort: AbortController | None = None
+        self._maintenance: AbortController | None = None
+        self._maintenance_task: asyncio.Future[Any] | None = None
         self._wake_requested = False
         self._disposed = False
         self._last_turn = turn_boundary_of(session)["lastTurn"]
@@ -277,17 +281,23 @@ class ReactLoopAgent:
 
     def send(self, message: Mapping[str, Any], target: str, wakeup: bool) -> None:
         # Waking input cannot join an aborted activity, so it starts the next turn.
-        after_abort = wakeup and self._abort is not None and self._abort.signal.aborted
+        active = self._active_abort()
+        after_abort = wakeup and active is not None and active.signal.aborted
         self.inbox.append("next-turn" if after_abort else target, message)
         if wakeup:
             self._wake(after_abort)
 
+    def _active_abort(self) -> AbortController | None:
+        """The controller of the running driver or maintenance task, if any."""
+        return self._abort if self.status == "running" else self._maintenance
+
     def _wake(self, after_abort: bool = False) -> None:
-        """Start a driver, or latch the wake behind an aborted one for replay when it ends."""
-        if self.status == "running":
-            reason = None if self._abort is None else self._abort.signal.reason
+        """Start a driver, or latch the wake behind active work for replay when it ends."""
+        if self.status == "running" or self._maintenance is not None:
+            active = self._active_abort()
+            reason = None if active is None else active.signal.reason
             disposed = isinstance(reason, Mapping) and reason.get("kind") == "disposed"
-            if after_abort and not disposed:
+            if (after_abort or self._maintenance is not None) and not disposed:
                 self._wake_requested = True
             return
         if self._disposed:
@@ -302,19 +312,62 @@ class ReactLoopAgent:
         *,
         keep_inbox: bool = False,
     ) -> None:
-        """Abort the running phase's signal. Started tools finish; the driver then stops."""
+        """Abort the active turn or maintenance signal. Started tools finish first."""
         if not keep_inbox:
             self.inbox.clear()
             self._wake_requested = False
-        if self._abort is not None and self.status == "running":
-            self._abort.abort(reason or {"kind": "user"})
+        active = self._active_abort()
+        if active is not None:
+            active.abort(reason or {"kind": "user"})
+
+    def run_maintenance(self, job: Callable[[AbortSignal], Awaitable[T]]) -> asyncio.Future[T]:
+        """Run one non-turn task from the idle phase; ``status`` stays ``idle``.
+
+        Waking input sent meanwhile waits in the inbox and runs once the task settles.
+        ``cancel()`` aborts the task's signal and ``when_idle()`` waits for the task.
+        Raises when a turn driver or another maintenance task owns the agent.
+        """
+        if self.status == "running" or self._maintenance is not None:
+            raise RuntimeError(f'agent "{self.id}" already has active work')
+        controller = AbortController()
+        self._maintenance = controller
+        self._wake_requested = False
+        task = asyncio.ensure_future(self._maintain(controller, job))
+        self._maintenance_task = task
+        return task
+
+    async def _maintain(
+        self, controller: AbortController, job: Callable[[AbortSignal], Awaitable[T]]
+    ) -> T:
+        try:
+            return await job(controller.signal)
+        finally:
+            reason = controller.signal.reason
+            disposed = isinstance(reason, Mapping) and reason.get("kind") == "disposed"
+            wake = (
+                not disposed
+                and self._wake_requested
+                and self.inbox.has_pending
+                and not self._disposed
+            )
+            self._maintenance = None
+            self._maintenance_task = None
+            self._wake_requested = False
+            if wake:
+                self._wake()
 
     async def when_idle(self) -> None:
-        while self._task is not None:
-            task = self._task
-            await task
-            if task is self._task:
-                break
+        """Wait until no turn driver or maintenance task remains, following replayed wakes."""
+        while True:
+            if self._task is not None:
+                task = self._task
+                await task
+                if task is self._task:
+                    return
+            elif self._maintenance_task is not None:
+                await asyncio.wait({self._maintenance_task})
+            else:
+                return
 
     async def dispose(self) -> None:
         self._disposed = True

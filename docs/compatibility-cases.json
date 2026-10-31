@@ -472,11 +472,47 @@
       "notes": ""
     },
     {
+      "id": "core/agent-loop::agent-loop-cancels-queued-wakeup-work-together-with-an-active-maintenance-task",
+      "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > cancels queued wakeup work together with an active maintenance task",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_maintenance.py::test_cancel_drops_wakeups_queued_behind_maintenance"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/agent-loop::agent-loop-publishes-one-dense-live-attempt-and-commits-one-v2-message-with-the-exact-embedded-stream",
       "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > publishes one dense live attempt and commits one v2 message with the exact embedded stream",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_phase5_runtime.py::test_assistant_stream_publishes_one_committed_attempt"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::agent-loop-rejects-a-second-maintenance-task-while-one-is-active",
+      "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > rejects a second maintenance task while one is active",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_maintenance.py::test_a_second_maintenance_task_is_rejected"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::agent-loop-replays-a-wake-latched-behind-maintenance-at-convergence",
+      "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > replays a wake latched behind maintenance at convergence",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_maintenance.py::test_a_wake_behind_maintenance_runs_when_it_settles"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::agent-loop-suppresses-the-replay-when-a-latched-maintenance-wake-is-removed",
+      "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > suppresses the replay when a latched maintenance wake is removed",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_maintenance.py::test_a_removed_wake_is_not_replayed"
       ],
       "notes": ""
     },

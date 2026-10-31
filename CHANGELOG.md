@@ -123,13 +123,18 @@
   - `deskagents.util.abort` provides `AbortController`, `AbortSignal` and `abortable`
     for plugins. Model streams, request preparation and retry backoff end promptly
     on abort, and the adapter stream is always closed.
+  - `agent.run_maintenance(job)` runs upstream-style maintenance (compaction, subagent
+    bookkeeping) while the agent is idle; waking input waits for it and `cancel()`
+    aborts it.
 - Plugin packages: `BundleLoader` resolves bundle row names through the
   `deskagents.plugins` entry-point group, so a plugin distribution from another
   repository is mounted by name. [docs/extending.md](docs/extending.md) and
   `examples/external_plugin` show a complete plugin family. The pytest-independent
-  `deskagents.testing` plugin contract runs a family's own mount, execution and unload
-  probes; lifecycle tests cover tools, guards, prompts, adapters, events and
-  projections owned by a real plugin fiber.
+  `deskagents.testing` plugin contract compares the host before mounting and after
+  unloading (host effects, harness-event listeners and core registries) and remounts
+  the family, so leaks fail it without the family's cooperation; lifecycle tests
+  cover tools, guards, prompts, adapters, events and projections owned by a real
+  plugin fiber.
 - Upstream watch: `docs/upstream.json` records the vendored Cordis versions and the
   unmapped upstream packages the core imports. `scripts/upstream_changes.py` reports
   their changes and gains `--exit-code`. A daily workflow keeps a tracking issue open

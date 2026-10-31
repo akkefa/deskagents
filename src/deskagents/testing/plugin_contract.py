@@ -1,45 +1,94 @@
 """Reusable lifecycle contract for external deskagents plugin families.
 
-The contract is deliberately capability-neutral. A plugin package supplies fresh
-mounted backends plus probes for the capabilities it owns; the shared cases verify
-mounting, exercise through public seams, and cleanup while the host remains alive.
+The contract is capability-neutral. A plugin package supplies a fresh host and the
+steps that mount and unmount its family on that host. The contract itself compares
+the host before mounting and after unloading: host-owned effects, listeners of the
+harness events, and the contents of the core registries. A registration that
+outlives its plugin therefore fails the contract even when the plugin's own probes
+pass. Capability probes add the family's own checks on top.
 """
 
 from __future__ import annotations
 
 import inspect
 import traceback
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
+
+from deepseek_cordis import Context
 
 __all__ = [
+    "HARNESS_EVENTS",
     "PLUGIN_CONTRACT_SUITE",
     "PluginContractBackend",
     "PluginContractFactory",
     "PluginContractResult",
+    "host_snapshot",
     "plugin_contract_cases",
     "run_plugin_contract",
 ]
 
 PLUGIN_CONTRACT_SUITE = "External plugin family contract"
 
+HARNESS_EVENTS = (
+    "agent/assistant-stream",
+    "agent/created",
+    "agent/disposed",
+    "agent/error",
+    "agent/inbox/claimed",
+    "agent/inbox/spliced",
+    "agent/pre-step",
+    "agent/request",
+    "agent/request-error",
+    "agent/status",
+    "agent/turn-stopping",
+    "approval/request",
+    "internal/plugin",
+    "internal/status",
+    "llm/adapters-updated",
+    "llm/models-updated",
+    "llm/stream",
+    "session/created",
+    "session/disposed",
+    "session/event",
+    "session/flush",
+    "tools/change",
+    "tools/execute",
+    "tools/post-execute",
+    "tools/pre-execute",
+    "tools/result",
+)
+"""Events whose listener counts the contract compares; extend with ``events``."""
+
 PluginContractProbe = Callable[[], object]
+
+
+async def _noop() -> None:
+    return None
 
 
 @dataclass
 class PluginContractBackend:
-    """One fresh host with an external plugin family mounted.
+    """One fresh host and the steps that mount and unmount a plugin family on it.
 
-    ``dispose_plugin`` removes only the external family. ``dispose`` tears down the
-    complete host and must be safe after ``dispose_plugin``.
+    ``ctx`` is the host's root context, created with the core bundle (or whatever the
+    family needs) but without the family. ``mount`` loads the family and
+    ``dispose_plugin`` unloads only it; both may be called again for a remount.
+    ``dispose`` tears down the complete host and must be safe after either.
+    ``services`` names the services the family provides; ``events`` adds event names
+    whose listener counts the contract compares.
     """
 
-    assert_active: PluginContractProbe
-    exercise: PluginContractProbe
+    ctx: Context
+    mount: PluginContractProbe
     dispose_plugin: PluginContractProbe
-    assert_disposed: PluginContractProbe
     dispose: PluginContractProbe
+    services: Sequence[str] = ()
+    events: Sequence[str] = ()
+    assert_active: PluginContractProbe = _noop
+    exercise: PluginContractProbe = _noop
+    assert_disposed: PluginContractProbe = _noop
 
 
 PluginContractFactory = Callable[[], Awaitable[PluginContractBackend]]
@@ -59,9 +108,82 @@ async def _invoke(callback: PluginContractProbe) -> object:
     return await result if inspect.isawaitable(result) else result
 
 
+async def _read(read: Callable[[], object]) -> object:
+    try:
+        return await _invoke(read)
+    except Exception as error:
+        return f"unreadable: {type(error).__name__}"
+
+
+async def host_snapshot(ctx: Context, events: Sequence[str] = ()) -> dict[str, object]:
+    """What a family must leave unchanged once it unloads, read through public APIs."""
+    snapshot: dict[str, object] = {
+        "host effects": sorted(effect.label for effect in ctx.fiber.get_effects()),
+        "listeners": {
+            name: len(ctx.events.dispatch("emit", name))
+            for name in sorted({*HARNESS_EVENTS, *events})
+        },
+    }
+    tools: Any = ctx.get("tools")
+    if tools is not None:
+        snapshot["tools"] = await _read(
+            lambda: sorted(definition["name"] for definition in tools.definitions())
+        )
+    prompt: Any = ctx.get("systemPrompt")
+    if prompt is not None:
+
+        async def sections() -> list[str]:
+            assembly = await prompt.assemble({})
+            return [section["name"] for section in assembly["sections"]]
+
+        snapshot["prompt sections"] = await _read(sections)
+    llm: Any = ctx.get("llm")
+    if llm is not None:
+        snapshot["model providers"] = await _read(
+            lambda: sorted(provider["id"] for provider in llm.list_providers())
+        )
+    agents: Any = ctx.get("agents")
+    if agents is not None:
+        snapshot["agents"] = await _read(lambda: sorted(agent.id for agent in agents.list()))
+    sessions: Any = ctx.get("sessions")
+    if sessions is not None:
+        snapshot["sessions"] = await _read(
+            lambda: sorted(session.id for session in sessions.list())
+        )
+    projections: Any = ctx.get("sessionProjections")
+    if projections is not None:
+        snapshot["projection keys"] = await _read(lambda: sorted(projections.summary_keys()))
+    return snapshot
+
+
+def _difference(before: Mapping[str, object], after: Mapping[str, object]) -> str:
+    lines = [
+        f"{key}: {before.get(key)!r} -> {after.get(key)!r}"
+        for key in sorted({*before, *after})
+        if before.get(key) != after.get(key)
+    ]
+    return "; ".join(lines)
+
+
+def _assert_services(backend: PluginContractBackend, present: bool) -> None:
+    for name in backend.services:
+        provided = backend.ctx.get(name) is not None
+        state = "missing while mounted" if present else "still provided after unload"
+        assert provided is present, f'service "{name}" is {state}'
+
+
+async def _assert_unchanged(
+    backend: PluginContractBackend, before: Mapping[str, object], when: str
+) -> None:
+    after = await host_snapshot(backend.ctx, backend.events)
+    assert after == before, f"{when} left the host changed: {_difference(before, after)}"
+
+
 async def _mounts(factory: PluginContractFactory) -> None:
     backend = await factory()
     try:
+        await _invoke(backend.mount)
+        _assert_services(backend, True)
         await _invoke(backend.assert_active)
     finally:
         await _invoke(backend.dispose)
@@ -70,6 +192,7 @@ async def _mounts(factory: PluginContractFactory) -> None:
 async def _exercises(factory: PluginContractFactory) -> None:
     backend = await factory()
     try:
+        await _invoke(backend.mount)
         await _invoke(backend.assert_active)
         await _invoke(backend.exercise)
         await _invoke(backend.assert_active)
@@ -80,9 +203,28 @@ async def _exercises(factory: PluginContractFactory) -> None:
 async def _unloads(factory: PluginContractFactory) -> None:
     backend = await factory()
     try:
+        before = await host_snapshot(backend.ctx, backend.events)
+        await _invoke(backend.mount)
+        await _invoke(backend.exercise)
+        await _invoke(backend.dispose_plugin)
+        await _assert_unchanged(backend, before, "unloading the family")
+        _assert_services(backend, False)
+        await _invoke(backend.assert_disposed)
+    finally:
+        await _invoke(backend.dispose)
+
+
+async def _remounts(factory: PluginContractFactory) -> None:
+    backend = await factory()
+    try:
+        before = await host_snapshot(backend.ctx, backend.events)
+        await _invoke(backend.mount)
+        await _invoke(backend.dispose_plugin)
+        await _invoke(backend.mount)
+        _assert_services(backend, True)
         await _invoke(backend.assert_active)
         await _invoke(backend.dispose_plugin)
-        await _invoke(backend.assert_disposed)
+        await _assert_unchanged(backend, before, "a mount, unload and remount")
     finally:
         await _invoke(backend.dispose)
 
@@ -90,7 +232,8 @@ async def _unloads(factory: PluginContractFactory) -> None:
 _CASES: tuple[tuple[str, PluginContractCheck], ...] = (
     ("mounts and exposes its declared capabilities", _mounts),
     ("executes through public harness seams", _exercises),
-    ("unloads without leaking owned registrations", _unloads),
+    ("unloads without leaving host registrations, listeners or effects", _unloads),
+    ("mounts again after unloading", _remounts),
 )
 
 
@@ -107,7 +250,7 @@ async def run_plugin_contract(
     for title, check in _CASES:
         try:
             await check(factory)
-        except BaseException as error:
+        except Exception as error:
             results.append(
                 PluginContractResult(
                     title,

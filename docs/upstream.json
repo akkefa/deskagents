@@ -65,7 +65,7 @@
       "module": "deskagents.core.agent_loop",
       "milestone": "0.1",
       "status": "in-progress",
-      "note": "Turn and step driving, inbox, pre-step, request, request-error, assistant-stream (including interrupted partial output), turn-stopping, request-header series and tool-registry diffs are ported, with upstream's cooperative cancellation (phase signal, wake latch, step recovery of unanswered tool calls). Most of the upstream suite is not yet catalogued."
+      "note": "Turn and step driving, inbox, pre-step, request, request-error, assistant-stream (including interrupted partial output), turn-stopping, request-header series and tool-registry diffs are ported, with upstream's cooperative cancellation (phase signal, wake latch, step recovery of unanswered tool calls) and maintenance tasks. Most of the upstream suite is not yet catalogued."
     },
     {
       "upstream": "packages/core/agent-default-model",

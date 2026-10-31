@@ -40,15 +40,18 @@ from .persistence_contract import (
     second_turn,
 )
 from .plugin_contract import (
+    HARNESS_EVENTS,
     PLUGIN_CONTRACT_SUITE,
     PluginContractBackend,
     PluginContractFactory,
     PluginContractResult,
+    host_snapshot,
     plugin_contract_cases,
     run_plugin_contract,
 )
 
 __all__ = [
+    "HARNESS_EVENTS",
     "LIVE_WRITE_PATH_CONTRACT_SUITE",
     "LLM_ADAPTER_CONTRACT_SUITE",
     "PERSISTENCE_CONTRACT_SUITE",
@@ -69,6 +72,7 @@ __all__ = [
     "PluginContractFactory",
     "PluginContractResult",
     "ScriptedAdapter",
+    "host_snapshot",
     "live_write_path_contract_cases",
     "llm_adapter_contract_cases",
     "meta",

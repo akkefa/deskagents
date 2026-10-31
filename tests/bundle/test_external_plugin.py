@@ -20,7 +20,7 @@ from deepseek_cordis import Context
 
 import deskagents.bundle
 from deskagents.bundle import MINIMAL_BUNDLE, BundleLoader, apply_row_patches, load_bundle_rows
-from deskagents.core import AgentRegistry, SystemPrompt, ToolsService
+from deskagents.core import AgentRegistry, SystemPrompt, ToolsService, define_tool
 from deskagents.llm import LlmRuntime, create_user_message
 from deskagents.testing import (
     PluginContractBackend,
@@ -79,7 +79,6 @@ async def external_plugin_backend() -> PluginContractBackend:
     ctx = Context()
     loader = BundleLoader(ctx)
     await loader.load_file(MINIMAL_BUNDLE)
-    family = await loader.load(apply_row_patches([], patches))
     tools = ctx.get("tools")
     prompt = ctx.get("systemPrompt")
     llm = ctx.get("llm")
@@ -88,9 +87,14 @@ async def external_plugin_backend() -> PluginContractBackend:
     assert isinstance(prompt, SystemPrompt)
     assert isinstance(llm, LlmRuntime)
     assert isinstance(agents, AgentRegistry)
-    adapter = skill_turn()
-    llm.register_adapter(["scripted"], adapter, ctx=ctx)
-    handles: list[Any] = []
+    llm.register_adapter(["scripted"], skill_turn(), ctx=ctx)
+    families: list[Any] = []
+
+    async def mount() -> None:
+        families.append(await loader.load(apply_row_patches([], patches)))
+
+    async def dispose_plugin() -> None:
+        await families.pop().dispose()
 
     async def assert_active() -> None:
         assert [tool["name"] for tool in tools.definitions()] == ["skill"]
@@ -100,24 +104,26 @@ async def external_plugin_backend() -> PluginContractBackend:
     async def exercise() -> None:
         handle = await agents.create(
             {
-                "sessionId": f"plugin-contract-{len(handles)}",
+                "sessionId": "plugin-contract",
                 "agentOptions": {"provider": "scripted", "model": "scripted"},
             }
         )
-        handles.append(handle)
-        handle.agent.followup(
-            create_user_message(
-                content=[{"type": "text", "text": "notes"}],
-                source={"kind": "user"},
+        try:
+            handle.agent.followup(
+                create_user_message(
+                    content=[{"type": "text", "text": "notes"}],
+                    source={"kind": "user"},
+                )
             )
-        )
-        await handle.agent.when_idle()
-        results = [
-            event["data"]
-            for event in handle.agent.session.snapshot_events()
-            if event["type"] == "tool/result"
-        ]
-        assert results[-1]["message"]["content"][0]["text"].startswith("Group changes")
+            await handle.agent.when_idle()
+            results = [
+                event["data"]
+                for event in handle.agent.session.snapshot_events()
+                if event["type"] == "tool/result"
+            ]
+            assert results[-1]["message"]["content"][0]["text"].startswith("Group changes")
+        finally:
+            await handle.dispose()
 
     async def assert_disposed() -> None:
         assert tools.definitions() == []
@@ -125,17 +131,20 @@ async def external_plugin_backend() -> PluginContractBackend:
         assert "skills" not in [section["name"] for section in assembly["sections"]]
 
     async def dispose() -> None:
-        while handles:
-            await handles.pop().dispose()
+        while families:
+            await families.pop().dispose()
         await loader.dispose()
         await ctx.fiber.dispose()
 
     return PluginContractBackend(
+        ctx=ctx,
+        mount=mount,
+        dispose_plugin=dispose_plugin,
+        dispose=dispose,
+        services=["skills"],
         assert_active=assert_active,
         exercise=exercise,
-        dispose_plugin=family.dispose,
         assert_disposed=assert_disposed,
-        dispose=dispose,
     )
 
 
@@ -147,7 +156,69 @@ async def test_external_family_passes_the_reusable_plugin_contract(
     results = await run_plugin_contract(external_plugin_backend)
     failures = [result.detail for result in results if result.outcome == "failed"]
     assert failures == []
-    assert [result.outcome for result in results] == ["passed", "passed", "passed"]
+    assert [result.outcome for result in results] == ["passed"] * 4
+
+
+class LeakyPlugin:
+    """Registers a tool and a listener on the host instead of on its own context."""
+
+    inject = ["tools"]
+
+    def __init__(self, host: Context) -> None:
+        self.host = host
+
+    def apply(self, ctx: Context, config: object = None) -> None:
+        async def execute(args: Mapping[str, Any], execution: object) -> str:
+            return "leaked"
+
+        tools = ctx.get("tools")
+        assert isinstance(tools, ToolsService)
+        tools.register(
+            define_tool(
+                name="leaked",
+                description="leaked",
+                parameters={},
+                output={
+                    "schema": {"type": "string"},
+                    "render": lambda args, value: [{"type": "text", "text": value}],
+                },
+                execute=execute,
+            ),
+            ctx=self.host,
+        )
+        self.host.on("tools/result", lambda execution, result: None)
+
+
+@pytest.mark.asyncio
+async def test_the_plugin_contract_detects_registrations_left_on_the_host() -> None:
+    async def factory() -> PluginContractBackend:
+        ctx = Context()
+        loader = BundleLoader(ctx, {"test.leaky": LeakyPlugin(ctx)})
+        await loader.load_file(MINIMAL_BUNDLE)
+        families: list[Any] = []
+
+        async def mount() -> None:
+            families.append(await loader.load([{"id": "leaky", "name": "test.leaky"}]))
+
+        async def dispose_plugin() -> None:
+            await families.pop().dispose()
+
+        async def dispose() -> None:
+            await loader.dispose()
+            await ctx.fiber.dispose()
+
+        return PluginContractBackend(
+            ctx=ctx, mount=mount, dispose_plugin=dispose_plugin, dispose=dispose
+        )
+
+    results = {result.title: result for result in await run_plugin_contract(factory)}
+    assert results["mounts and exposes its declared capabilities"].outcome == "passed"
+    unload = results["unloads without leaving host registrations, listeners or effects"]
+    assert unload.outcome == "failed"
+    message = str(unload.error)
+    assert "tools: [] -> ['leaked']" in message
+    assert "'tools/result': 1" in message
+    assert results["mounts again after unloading"].outcome == "failed"
 
 
 @pytest.mark.asyncio

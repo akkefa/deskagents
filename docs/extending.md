@@ -140,6 +140,12 @@ Registries, all taking `ctx=` for ownership:
 | `sessionProjections` | `deskagents.session.projection` | `register(definition)`, `on_changed(listener)` |
 | `agents` | `deskagents.core` | `create`, `resume`, and initiator attribution for child work |
 
+An agent's `run_maintenance(job)` is upstream's `runMaintenance`: it runs
+`job(signal)` while the agent is idle, for work such as compaction or subagent
+bookkeeping. Waking input sent meanwhile waits and runs when the job settles;
+`cancel()` aborts the job's signal and `when_idle()` waits for it. It raises while a
+turn or another maintenance job owns the agent.
+
 Events, with the upstream names and dispatch modes. A waterfall listener receives
 `next_` and returns the (possibly replaced) result. Listener failures of notification
 events are logged and contained; failures of waterfall and serial listeners propagate.
@@ -218,9 +224,15 @@ family; a full port follows the upstream packages above and their tests.
 
 - Mount it with the core bundle in a `Context` and drive turns with
   `deskagents.testing.ScriptedAdapter`.
-- Supply a fresh `PluginContractBackend` and run
-  `deskagents.testing.run_plugin_contract`. Its probes verify mount, execution and
-  cleanup without depending on pytest.
+- Run `deskagents.testing.run_plugin_contract` with a factory that returns a fresh
+  `PluginContractBackend`: the host `ctx` without the family, `mount` and
+  `dispose_plugin` steps (each may run twice), `dispose`, and the `services` the
+  family provides. The contract compares the host before mounting and after
+  unloading (host-owned effects, listeners of the harness events, and the tool,
+  prompt, model-provider, agent, session and projection registries) and mounts the
+  family a second time, so a registration that outlives the family fails it. Optional
+  `assert_active`, `exercise` and `assert_disposed` probes add the family's own checks;
+  `exercise` must dispose any agents it creates. It does not depend on pytest.
 - Run the capability contracts in `deskagents.testing` for persistence backends, live
   write paths and model adapters.
 - Port the upstream package's behavior tests and mark each with its pinned source.
