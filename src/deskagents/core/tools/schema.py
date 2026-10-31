@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -66,7 +67,8 @@ def parameter_schema_spec_to_json_schema(
 
 
 def validate_args(spec: Mapping[str, Any], args: object) -> list[str]:
-    return validate_json_schema_value(parameter_schema_spec_to_json_schema(spec), args)
+    """Violations of model arguments against a parameter spec; never raises for bad input."""
+    return validate_json_schema_value(parameter_schema_spec_to_json_schema(spec), args, "")
 
 
 def project_tool_schema(
@@ -78,7 +80,9 @@ def project_tool_schema(
         else definition["parameters"]
     )
     if parameters is None:
-        raise ValueError(f'tool "{definition["name"]}" parameters must be lossless JSON')
+        raise ValueError(
+            f'tool "{definition["name"]}" parameters must be lossless JSON before schema projection'
+        )
     return {
         "name": definition["name"],
         "description": definition["description"],
@@ -88,42 +92,58 @@ def project_tool_schema(
 
 
 def define_tool(**options: Any) -> dict[str, Any]:
-    parameters_spec = options["parameters"]
-    parameters = parameter_schema_spec_to_json_schema(parameters_spec)
+    timeout = options.get("timeoutMs")
+    if timeout is not None and not (
+        isinstance(timeout, int | float)
+        and not isinstance(timeout, bool)
+        and math.isfinite(timeout)
+        and timeout > 0
+    ):
+        raise ValueError(
+            f"defineTool({options['name']}): timeoutMs must be a positive finite number"
+        )
+    parameters = parameter_schema_spec_to_json_schema(options["parameters"])
     output = options["output"]
     output_schema = value_schema_spec_to_json_schema(output["schema"])
     execute = options["execute"]
 
+    def valid(args: object) -> bool:
+        return not validate_json_schema_value(parameters, args, "")
+
     async def checked_execute(args: object, execution: Mapping[str, Any]) -> object:
-        violations = validate_json_schema_value(parameters, args)
+        violations = validate_json_schema_value(parameters, args, "")
         if violations:
             raise ToolArgsError(violations)
         return await execute(args, execution)
 
-    definition = {
+    presentation_meta = output.get("presentationMeta")
+    definition: dict[str, Any] = {
         "name": options["name"],
         "description": options["description"],
         "parameters": parameters,
         "output": {
             "schema": output_schema,
             "render": output["render"],
-            **(
-                {"presentationMeta": output["presentationMeta"]}
-                if "presentationMeta" in output
-                else {}
-            ),
+            **({"presentationMeta": presentation_meta} if presentation_meta is not None else {}),
         },
+        **({"deferLoading": True} if options.get("deferLoading") is True else {}),
+        **({"timeoutMs": timeout} if timeout is not None else {}),
         "execute": checked_execute,
     }
-    for key in (
-        "deferLoading",
-        "timeoutMs",
-        "isConcurrencySafe",
-        "projectContent",
-        "finalizeContent",
-        "presentCall",
-        "presentResult",
-    ):
-        if key in options:
+    for key in ("projectContent", "finalizeContent"):
+        if options.get(key) is not None:
             definition[key] = options[key]
+    # Presenters run on replay of arbitrary logged arguments, possibly from an older
+    # schema, so they validate softly and fall back to the generic view instead of raising.
+    present_call = options.get("presentCall")
+    if present_call is not None:
+        definition["presentCall"] = lambda args: present_call(args) if valid(args) else None
+    present_result = options.get("presentResult")
+    if present_result is not None:
+        definition["presentResult"] = lambda args, result: (
+            present_result(args, result) if valid(args) else None
+        )
+    is_concurrency_safe = options.get("isConcurrencySafe")
+    if is_concurrency_safe is not None:
+        definition["isConcurrencySafe"] = lambda args: valid(args) and is_concurrency_safe(args)
     return definition

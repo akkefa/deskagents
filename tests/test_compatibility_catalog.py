@@ -14,9 +14,10 @@ from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 _catalog = runpy.run_path(str(ROOT / "scripts" / "catalog.py"))
-upstream_marks = cast(Callable[[Path], dict[str, str]], _catalog["upstream_marks"])
+upstream_marks = cast(Callable[[Path], dict[str, list[str]]], _catalog["upstream_marks"])
 catalog_problems = cast(
-    Callable[[dict[str, Any], dict[str, str], set[str]], list[str]], _catalog["catalog_problems"]
+    Callable[[dict[str, Any], dict[str, list[str]], set[str]], list[str]],
+    _catalog["catalog_problems"],
 )
 current_problems = cast(Callable[[], list[str]], _catalog["current_problems"])
 
@@ -37,7 +38,7 @@ GOOD: dict[str, Any] = {
         }
     ],
 }
-MARKS = {"tests/test_x.py::test_replace": f"{SPEC}::replaces a range"}
+MARKS = {"tests/test_x.py::test_replace": [f"{SPEC}::replaces a range"]}
 MAPPED = {"packages/core/session"}
 
 
@@ -46,8 +47,15 @@ def test_checker_accepts_a_consistent_catalog() -> None:
 
 
 def test_checker_rejects_an_uncatalogued_mark() -> None:
-    extra = {**MARKS, "tests/test_x.py::test_other": f"{SPEC}::other"}
+    extra = {**MARKS, "tests/test_x.py::test_other": [f"{SPEC}::other"]}
     assert any("not catalogued" in p for p in catalog_problems(GOOD, extra, MAPPED))
+
+
+def test_checker_rejects_an_uncatalogued_mark_stacked_on_a_catalogued_test() -> None:
+    stacked = {"tests/test_x.py::test_replace": [f"{SPEC}::replaces a range", f"{SPEC}::other"]}
+    assert catalog_problems(GOOD, stacked, MAPPED) == [
+        f"tests/test_x.py::test_replace is marked upstream('{SPEC}::other') but not catalogued"
+    ]
 
 
 def test_checker_rejects_a_case_without_its_mark() -> None:
@@ -64,12 +72,15 @@ def test_marks_are_found_in_functions_and_classes(tmp_path: Path) -> None:
     (tests / "test_sample.py").write_text(
         "import pytest\n\n"
         f"@pytest.mark.upstream('{SPEC}::a')\n"
+        f"@pytest.mark.upstream('{SPEC}::c')\n"
         "def test_a() -> None: ...\n\n"
+        "@pytest.mark.asyncio\n"
+        "def test_unmarked() -> None: ...\n\n"
         "class TestGroup:\n"
         f"    @pytest.mark.upstream('{SPEC}::b')\n"
         "    async def test_b(self) -> None: ...\n"
     )
     assert upstream_marks(tests) == {
-        "tests/test_sample.py::test_a": f"{SPEC}::a",
-        "tests/test_sample.py::TestGroup::test_b": f"{SPEC}::b",
+        "tests/test_sample.py::test_a": [f"{SPEC}::a", f"{SPEC}::c"],
+        "tests/test_sample.py::TestGroup::test_b": [f"{SPEC}::b"],
     }

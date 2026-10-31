@@ -84,9 +84,9 @@ def _module_constants(tree: ast.Module) -> dict[str, str]:
     return constants
 
 
-def upstream_marks(tests_root: Path) -> dict[str, str]:
-    """Map each marked test node id to the upstream source its mark names."""
-    marks: dict[str, str] = {}
+def upstream_marks(tests_root: Path) -> dict[str, list[str]]:
+    """Map each marked test node id to the upstream sources its marks name, in order."""
+    marks: dict[str, list[str]] = {}
     for path in sorted(tests_root.rglob("test_*.py")):
         relative = path.relative_to(tests_root.parent).as_posix()
         tree = ast.parse(path.read_text())
@@ -105,14 +105,19 @@ def upstream_marks(tests_root: Path) -> dict[str, str]:
                 ]
             for name, member in members:
                 assert isinstance(member, ast.FunctionDef | ast.AsyncFunctionDef)
+                sources: list[str] = []
                 for decorator in member.decorator_list:
                     source = _is_upstream_mark(decorator, constants)
-                    if source is not None:
-                        marks[f"{relative}::{name}"] = source
+                    if source is not None and source not in sources:
+                        sources.append(source)
+                if sources:
+                    marks[f"{relative}::{name}"] = sources
     return marks
 
 
-def catalog_problems(catalog: dict[str, Any], marks: dict[str, str], mapped: set[str]) -> list[str]:
+def catalog_problems(
+    catalog: dict[str, Any], marks: dict[str, list[str]], mapped: set[str]
+) -> list[str]:
     problems: list[str] = []
     cases: list[dict[str, Any]] = catalog["cases"]
     files = {entry["path"]: entry for entry in catalog["source_files"]}
@@ -125,7 +130,7 @@ def catalog_problems(catalog: dict[str, Any], marks: dict[str, str], mapped: set
         if not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
             problems.append(f"bad sha256 for {entry['path']}")
     used_files: set[str] = set()
-    claimed: set[str] = set()
+    claimed: set[tuple[str, str]] = set()
     for case in cases:
         match = SOURCE.fullmatch(case["source"])
         if match is None:
@@ -145,12 +150,13 @@ def catalog_problems(catalog: dict[str, Any], marks: dict[str, str], mapped: set
         ):
             problems.append(f"{case['id']}: no Python tests")
         for test in case["python_tests"]:
-            claimed.add(test)
-            if marks.get(test) != case["source"]:
+            claimed.add((test, case["source"]))
+            if case["source"] not in marks.get(test, ()):
                 problems.append(f"{case['id']}: {test} lacks the matching upstream mark")
-    for test, source in marks.items():
-        if test not in claimed:
-            problems.append(f"{test} is marked upstream({source!r}) but not catalogued")
+    for test, sources in marks.items():
+        for source in sources:
+            if (test, source) not in claimed:
+                problems.append(f"{test} is marked upstream({source!r}) but not catalogued")
     for path in files.keys() - used_files:
         problems.append(f"source file {path} has no cases")
     return problems
@@ -170,7 +176,9 @@ def sync(upstream: Path) -> dict[str, Any]:
     catalog["upstream_commit"] = pin
     marks = upstream_marks(ROOT / "tests")
     by_source: dict[str, dict[str, Any]] = {case["source"]: case for case in catalog["cases"]}
-    for test, source in sorted(marks.items()):
+    for test, source in sorted(
+        (test, source) for test, sources in marks.items() for source in sources
+    ):
         case = by_source.get(source)
         if case is None:
             case = {

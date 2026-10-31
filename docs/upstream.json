@@ -42,7 +42,7 @@
       "module": "deskagents.core.tools",
       "milestone": "0.1",
       "status": "in-progress",
-      "note": "Registry, scoped layers and guards are ported, as are the pipeline stages (pre-execute with optional approval routing; tools/execute with a replaceable signal fused into the body; post-execute value/content replacement and contexts; projectContent and finalizeContent; lossless materialization; late-abort results) and the batch scheduler (bounded pool, model-order commits, abort drain with synthetic results). Most of the upstream suite is not yet catalogued."
+      "note": "Registry, scoped layers and guards are ported, as are the pipeline stages (pre-execute with optional approval routing; tools/execute with a replaceable signal fused into the body; post-execute value/content replacement and contexts; projectContent and finalizeContent; lossless materialization; late-abort results) and the batch scheduler (bounded pool, model-order commits, abort drain with synthetic results). tools.spec, activation.spec, execution-mode.spec and the value validator of json-schema.spec are catalogued; the schema assertion, schema DSL (schema.spec), scoped dispatch (scoped.spec) and properties suites are not yet. Nested composite dispatch and upstream's single-call pipeline path are not ported."
     },
     {
       "upstream": "packages/core/tool-executor-native",

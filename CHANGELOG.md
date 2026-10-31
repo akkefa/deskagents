@@ -126,6 +126,23 @@
   - `agent.run_maintenance(job)` runs upstream-style maintenance (compaction, subagent
     bookkeeping) while the agent is idle; waking input waits for it and `cancel()`
     aborts it.
+- Tool runtime fidelity, from the `core/tools` suites:
+  - `validate_json_schema_value` is an iterative port of upstream's validator, with its
+    messages, root paths (`arguments` for model arguments) and containment of values
+    whose inspection raises.
+  - Registration checks the output declaration, a positive finite `timeoutMs` and the
+    reserved `run_code` name; output projection failures become `INVALID_TOOL_OUTPUT`
+    results; listeners of `tools/execute` and `tools/post-execute` see frozen results.
+  - `define_tool` validates arguments softly for `presentCall`, `presentResult` (malformed
+    arguments give `None`) and `isConcurrencySafe` (malformed arguments run exclusive),
+    and leaves unset optional fields out of the definition.
+  - A step's resolved tool set no longer admits a same-name re-registration, and a
+    condition that fails after cancellation reports the cancellation.
+  - Mounting `ToolsService` with the removed `mode` or `maxParallelSubCalls` config
+    fails with `invalid config`.
+  - The catalog records every `@pytest.mark.upstream` mark on a test, so one
+    parametrized test can cover several upstream cases; earlier stacked marks had
+    been dropped.
 - Plugin packages: `BundleLoader` resolves bundle row names through the
   `deskagents.plugins` entry-point group, so a plugin distribution from another
   repository is mounted by name. [docs/extending.md](docs/extending.md) and

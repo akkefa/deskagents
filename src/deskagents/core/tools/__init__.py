@@ -13,7 +13,7 @@ from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-from deepseek_cordis import Context, Service, current_context
+from deepseek_cordis import Context, Service, ValidationError, ValidationIssue, current_context
 
 from deskagents._cordis import emit_contained
 from deskagents.core.scope import (
@@ -26,7 +26,13 @@ from deskagents.core.scope import (
 )
 from deskagents.llm import HarnessError, create_tool_result_message
 from deskagents.util.abort import AbortSignal, is_aborted, throw_if_aborted
-from deskagents.util.values import deep_freeze, is_json_value, parse_json, snapshot_json_value
+from deskagents.util.values import (
+    deep_freeze,
+    is_json_value,
+    parse_json,
+    snapshot_json_value,
+    stringify_json,
+)
 
 from .json_schema import (
     JsonSchemaError,
@@ -96,6 +102,15 @@ class ToolBatchExecutionError(Exception):
 
 def _aborted(signal: object) -> bool:
     return is_aborted(signal)
+
+
+def _positive_finite(value: object) -> bool:
+    return (
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+    )
 
 
 def _error_message(error: BaseException) -> str:
@@ -184,6 +199,32 @@ def _materialize(result: Mapping[str, Any]) -> Mapping[str, Any]:
     return cast(Mapping[str, Any], deep_freeze({**frozen, "value": result.get("value")}))
 
 
+def _snapshot_value(name: str, candidate: object) -> object:
+    """Detach a body or policy value, classifying any failure as invalid output."""
+    try:
+        lossless = is_json_value(candidate)
+    except Exception as error:
+        raise ToolOutputError(name, [f"value snapshot failed: {_error_message(error)}"]) from error
+    if not lossless:
+        raise ToolOutputError(name, ["value is not lossless JSON"])
+    return snapshot_json_value(candidate)
+
+
+def _projection_error(name: str, projector: str, error: BaseException) -> ToolOutputError:
+    return ToolOutputError(name, [f"output.{projector} failed: {_error_message(error)}"])
+
+
+def _snapshot_projection(name: str, projector: str, candidate: object) -> Any:
+    """Detach one render or presentationMeta result, or raise the invalid-output error."""
+    try:
+        lossless = is_json_value(candidate)
+    except Exception as error:
+        raise _projection_error(name, projector, error) from error
+    if not lossless or (projector == "render" and not isinstance(candidate, list)):
+        raise ToolOutputError(name, [f"output.{projector} returned non-lossless JSON"])
+    return snapshot_json_value(candidate)
+
+
 def _parse_arguments(raw: object) -> object:
     """Model arguments as ``JSON.parse`` reads them; empty is ``{}``, malformed stays text."""
     if not raw:
@@ -261,9 +302,13 @@ class _Registration:
 
 class _ToolLayer:
     def __init__(self, scope: ScopeKey | None) -> None:
-        suffix = " globally" if scope is None else " in this scope"
+        suffix = (
+            " (for a per-agent variant, register through that agent's `agent.ctx` instead)"
+            if scope is None
+            else " in this scope"
+        )
         self.tools: NamedEntries[_Registration] = NamedEntries(
-            lambda name: ValueError(f'tool "{name}" exists{suffix}')
+            lambda name: ValueError(f'tool "{name}" is already registered{suffix}')
         )
         self.restrictions: AnonymousEntries[Mapping[str, frozenset[str]]] = AnonymousEntries()
 
@@ -293,7 +338,7 @@ class ResolvedToolSet:
     def __init__(
         self,
         owner: ScopeKey,
-        admitted: Mapping[str, Mapping[str, Any]],
+        admitted: Mapping[str, tuple[Mapping[str, Any], _Registration]],
         service: ToolsService,
     ) -> None:
         self._owner, self._admitted, self._service = owner, dict(admitted), service
@@ -303,18 +348,40 @@ class ResolvedToolSet:
         self._closed = True
 
     def view(self, scope: ScopeKey | None) -> Mapping[str, Mapping[str, Any]]:
+        """Admitted tools still registered as admitted; a same-name re-registration is not."""
         if self._closed or scope is not self._owner:
             return {}
-        current = self._service._view(scope)[0]
+        visible, registrations, _ = self._service._view(scope)
         return {
             name: definition
-            for name, definition in self._admitted.items()
-            if current.get(name) is definition
+            for name, (definition, registration) in self._admitted.items()
+            if visible.get(name) is definition and registrations.get(name) is registration
         }
+
+
+class _ToolsConfig:
+    """Rejects the removed execution keys, which untyped config files can still carry."""
+
+    REMOVED = {
+        "mode": "mode was removed; mount a native or PTC tool executor instead",
+        "maxParallelSubCalls": "maxParallelSubCalls moved to the PTC tool executor configuration",
+    }
+
+    def validate(self, value: object) -> object:
+        if isinstance(value, Mapping):
+            issues = [
+                ValidationIssue(message, (key,))
+                for key, message in self.REMOVED.items()
+                if key in value
+            ]
+            if issues:
+                raise ValidationError(issues)
+        return value
 
 
 class ToolsService(Service):
     name = "tools"
+    Config = _ToolsConfig()
 
     def __init__(self, ctx: Context, config: object = None) -> None:
         super().__init__(ctx, config)
@@ -341,17 +408,23 @@ class ToolsService(Service):
         ctx: Context | None = None,
     ) -> Callable[[], object]:
         name = definition["name"]
-        if name == RUN_CODE_NAME:
-            raise ValueError(f'tool name "{RUN_CODE_NAME}" is reserved')
         output = definition.get("output")
-        if not isinstance(output, Mapping) or not callable(output.get("render")):
-            raise TypeError(f'tool "{name}" must declare output')
-        assert_supported_json_schema(output.get("schema"))
-        timeout = definition.get("timeoutMs")
-        if timeout is not None and (
-            not isinstance(timeout, int | float) or not math.isfinite(timeout) or timeout <= 0
+        if (
+            not isinstance(output, Mapping)
+            or not callable(output.get("render"))
+            or ("presentationMeta" in output and not callable(output["presentationMeta"]))
         ):
-            raise TypeError(f'tool "{name}" timeoutMs must be positive')
+            raise TypeError(
+                f'tool "{name}" must declare output {{ schema, render, presentationMeta? }}'
+            )
+        assert_supported_json_schema(output.get("schema"))
+        if not _positive_finite(definition.get("timeoutMs", 1)):
+            raise TypeError(f'tool "{name}" timeoutMs must be a positive finite number')
+        if name == RUN_CODE_NAME:
+            raise ValueError(
+                f'tool name "{RUN_CODE_NAME}" is reserved for the PTC mode presentation '
+                "transport and cannot be registered or shadowed"
+            )
         return self._layers.effect(
             self.caller(ctx),
             lambda layer: layer.tools.insert(name, _Registration(definition, when)),
@@ -447,18 +520,19 @@ class ToolsService(Service):
         agent, signal = context["agent"], context["signal"]
         throw_if_aborted(signal)
         visible, registrations, _ = self._view(agent)
-        admitted: dict[str, Mapping[str, Any]] = {}
+        admitted: dict[str, tuple[Mapping[str, Any], _Registration]] = {}
         for name, definition in visible.items():
-            when = registrations[name].when
+            registration = registrations[name]
             try:
-                enabled = True if when is None else when(context)
+                enabled = True if registration.when is None else registration.when(context)
                 if inspect.isawaitable(enabled):
                     enabled = await enabled
             except Exception as error:
+                throw_if_aborted(signal)
                 raise ToolActivationError(name, error) from error
             throw_if_aborted(signal)
             if enabled:
-                admitted[name] = definition
+                admitted[name] = (definition, registration)
         return ResolvedToolSet(agent, admitted, self)
 
     def _describe(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -610,7 +684,8 @@ class NativeToolExecutor:
                     "channel is available"
                 ),
             }, False
-        raise ValueError(f"unknown approval outcome: {outcome!r}")
+        rendered = stringify_json(outcome) if is_json_value(outcome) else str(outcome)
+        raise ValueError(f"unreachable variant in ApprovalOutcome: {rendered}")
 
     def _execution_mode(self, block: Mapping[str, Any], input_: Mapping[str, Any]) -> str:
         """Only an exact ``True`` from the visible tool's classifier runs in parallel."""
@@ -671,9 +746,7 @@ class NativeToolExecutor:
         tool = self.tools.executable(name, input_.get("agent"), input_.get("toolSet"))
         if tool is None:
             raise ToolNotFoundError(name)
-        if not is_json_value(value):
-            raise ToolOutputError(name, ["value is not lossless JSON"])
-        detached = snapshot_json_value(value)
+        detached = _snapshot_value(name, value)
         violations = validate_json_schema_value(tool["output"]["schema"], detached)
         if violations:
             raise ToolOutputError(name, violations)
@@ -682,13 +755,11 @@ class NativeToolExecutor:
         try:
             content = tool["output"]["render"](arguments, frozen)
         except Exception as error:
-            raise ToolOutputError(name, [f"output.render failed: {error}"]) from error
-        if not isinstance(content, list) or not is_json_value(content):
-            raise ToolOutputError(name, ["output.render returned non-lossless JSON"])
+            raise _projection_error(name, "render", error) from error
         result: dict[str, Any] = {
             "isError": False,
             "value": frozen,
-            "content": snapshot_json_value(content),
+            "content": _snapshot_projection(name, "render", content),
             **({"concludesTurn": True} if execution.concludes_turn else {}),
         }
         presentation_meta = tool["output"].get("presentationMeta")
@@ -696,10 +767,8 @@ class NativeToolExecutor:
             try:
                 meta = presentation_meta(arguments, frozen)
             except Exception as error:
-                raise ToolOutputError(name, [f"output.presentationMeta failed: {error}"]) from error
-            if not is_json_value(meta):
-                raise ToolOutputError(name, ["output.presentationMeta returned non-lossless JSON"])
-            result["meta"] = snapshot_json_value(meta)
+                raise _projection_error(name, "presentationMeta", error) from error
+            result["meta"] = _snapshot_projection(name, "presentationMeta", meta)
         return result
 
     def _normalize_dispatch_result(
@@ -828,7 +897,7 @@ class NativeToolExecutor:
 
             async def body() -> Mapping[str, Any]:
                 nonlocal canonical
-                canonical = await self._dispatch_body(call, input_)
+                canonical = deep_freeze(await self._dispatch_body(call, input_))
                 return canonical
 
             dispatched = self.ctx.waterfall(
@@ -867,7 +936,7 @@ class NativeToolExecutor:
             project, call.project = call.project, None
             content = None if project is None else project(call.execution, result)
             projected = result if content is None else _materialize({**result, "content": content})
-            post = await self._post_execute(call, input_, projected)
+            post = await self._post_execute(call, input_, deep_freeze(projected))
             if _aborted(call.caller_signal) and not post["isError"]:
                 post = self._cancellation_result(call, post)
             return self._finish(call, post)

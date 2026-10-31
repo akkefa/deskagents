@@ -132,6 +132,18 @@
       "sha256": "d238f64c43111d6124065c23c6296598e49889b39f838fc665512d2dcd16f581"
     },
     {
+      "path": "packages/core/tools/tests/activation.spec.ts",
+      "sha256": "51f206a22a25b9d1b010b11794206d09386eec3c90357bda7bc4fea40d7af774"
+    },
+    {
+      "path": "packages/core/tools/tests/execution-mode.spec.ts",
+      "sha256": "6b2532e07da949fb2c220eea21d97c62e2d114314ffc86d2755581187c328e62"
+    },
+    {
+      "path": "packages/core/tools/tests/json-schema.spec.ts",
+      "sha256": "3eef7852b3b20446f660c8d793fd9cee32e78842e3f349f57f0db276e476a499"
+    },
+    {
       "path": "packages/core/tools/tests/scoped.spec.ts",
       "sha256": "832dacdc23089e2b8abae09d9bb977899d3090c4a63f311034951aa25b7e2f83"
     },
@@ -499,6 +511,15 @@
       "notes": ""
     },
     {
+      "id": "core/agent-loop::agent-loop-rejects-concurrent-maintenance-while-one-job-owns-the-agent",
+      "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > rejects concurrent maintenance while one job owns the Agent",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_maintenance.py::test_a_second_maintenance_task_is_rejected"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/agent-loop::agent-loop-replays-a-wake-latched-behind-maintenance-at-convergence",
       "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > replays a wake latched behind maintenance at convergence",
       "classification": "ported",
@@ -621,6 +642,15 @@
       "classification": "ported",
       "python_tests": [
         "tests/core/test_agent_initiator.py::test_overlapping_initiators_keep_their_own_context"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent::agentregistry-initiator-scope-reports-an-absent-initiator-and-requires-an-active-boundary",
+      "source": "packages/core/agent/tests/agent-initiator.spec.ts::AgentRegistry initiator scope > reports an absent initiator and requires an active boundary",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_agent_initiator.py::test_initiator_boundaries_are_nested_and_clearable"
       ],
       "notes": ""
     },
@@ -3673,11 +3703,489 @@
       "notes": ""
     },
     {
+      "id": "core/tools::activates-and-deactivates-a-registered-tool-without-allowing-historical-calls",
+      "source": "packages/core/tools/tests/activation.spec.ts::activates and deactivates a registered tool without allowing historical calls",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_activation_follows_each_step_without_reviving_old_steps"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::applies-a-batch-admission-to-the-calls-its-executor-runs",
+      "source": "packages/core/tools/tests/activation.spec.ts::applies a batch admission to the calls its executor runs",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_a_batch_runs_only_what_its_step_admitted"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::applies-live-restrictions-and-closes-step-admission-permanently",
+      "source": "packages/core/tools/tests/activation.spec.ts::applies live restrictions and closes step admission permanently",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_restrictions_apply_live_and_disposal_is_final"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::does-not-restore-a-registration-removed-during-its-asynchronous-condition",
+      "source": "packages/core/tools/tests/activation.spec.ts::does not restore a registration removed during its asynchronous condition",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_a_late_condition_cannot_restore_a_removed_registration"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::does-not-substitute-a-same-name-registration-after-admission",
+      "source": "packages/core/tools/tests/activation.spec.ts::does not substitute a same-name registration after admission",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_a_re_registration_is_not_admitted_by_an_older_step"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::keeps-admissions-specific-to-the-requesting-agent",
+      "source": "packages/core/tools/tests/activation.spec.ts::keeps admissions specific to the requesting agent",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_admission_belongs_to_the_requesting_agent"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::propagates-cancellation-after-an-asynchronous-condition-settles",
+      "source": "packages/core/tools/tests/activation.spec.ts::propagates cancellation after an asynchronous condition settles",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_cancellation_wins_after_a_condition_settles"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::reports-a-wrapper-result-completed-at-cancellation-as-cancelled-rather-than-unknown",
+      "source": "packages/core/tools/tests/activation.spec.ts::reports a wrapper result completed at cancellation as cancelled rather than unknown",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_a_wrapper_result_at_cancellation_is_aborted_not_unknown"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::reports-condition-failures-without-treating-them-as-disabled-tools",
+      "source": "packages/core/tools/tests/activation.spec.ts::reports condition failures without treating them as disabled tools",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_a_failing_condition_is_an_activation_error"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::settles-calls-of-a-cancelled-step-through-cancellation-with-their-finalizers",
+      "source": "packages/core/tools/tests/activation.spec.ts::settles calls of a cancelled step through cancellation with their finalizers",
+      "classification": "deferred",
+      "python_tests": [],
+      "notes": "Needs upstream's single-call pipeline path (executeToolFixture). Python exposes only batches, where a pre-aborted call is skipped with a synthetic result and no finalizer."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-classifies-invalid-definecontenttoolfixture-arguments-as-exclusive-without-throwing",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > classifies invalid defineContentToolFixture arguments as exclusive without throwing",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_invalid_arguments_classify_as_exclusive"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-defaults-to-exclusive-for-a-tool-with-no-isconcurrencysafe-declaration",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > defaults to exclusive for a tool with no isConcurrencySafe declaration",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_only_an_explicit_true_runs_in_parallel"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-isconcurrencysafe-never-reaches-the-model-facing-schemas-projection",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > isConcurrencySafe never reaches the model-facing schemas() projection",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_the_classifier_never_reaches_the_model"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-passes-parsed-arguments-directly-to-a-raw-definition",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > passes parsed arguments directly to a raw definition",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_raw_classifiers_receive_the_parsed_arguments"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-returns-exclusive-for-an-unknown-tool",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > returns exclusive for an unknown tool",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_only_an_explicit_true_runs_in_parallel"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-returns-exclusive-when-the-classifier-returns-false-for-these-args",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > returns exclusive when the classifier returns false for these args",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_the_classifier_decides_per_call"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-returns-parallel-only-for-an-explicit-true-classifier",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > returns parallel only for an explicit true classifier",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_only_an_explicit_true_runs_in_parallel"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-toolexecutionmode-is-the-object-tagged-union",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > ToolExecutionMode is the object-tagged union",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "TypeScript type-level assertion (expectTypeOf) with no runtime behavior."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-treats-a-throwing-raw-classifier-as-exclusive",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > treats a throwing raw classifier as exclusive",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_raw_classifiers_fail_closed"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::toolexecutionpipeline-executionmode-treats-a-truthy-non-boolean-raw-result-as-exclusive",
+      "source": "packages/core/tools/tests/execution-mode.spec.ts::ToolExecutionPipeline.executionMode > treats a truthy non-boolean raw result as exclusive",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_activation.py::test_raw_classifiers_fail_closed"
+      ],
+      "notes": "Python has no public ToolExecutionPipeline; the test calls the native executor's per-call classifier, which returns the mode name instead of a { kind } object."
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-an-unconstrained-schema-accepts-only-lossless-json-values",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > an unconstrained schema accepts only lossless JSON values",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_unconstrained_schema_accepts_only_lossless_json"
+      ],
+      "notes": "Python stand-ins for the lossy JavaScript values: a function, inf, -0.0, a set, a cycle and a dict subclass."
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-enforces-scalar-enum-and-const-together",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > enforces scalar enum and const together",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_enum_and_const"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-keeps-assertnever-as-a-forged-schema-backstop",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > keeps assertNever as a forged-schema backstop",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_forged_schema_type_raises"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-rejects-wrong-scalar-types-and-lossy-numbers",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > rejects wrong scalar types and lossy numbers",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_wrong_scalars_and_lossy_numbers"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-returns-a-violation-instead-of-throwing-for-a-container-with-a-hostile-getter",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > returns a violation instead of throwing for a container with a hostile getter",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_hostile_container_is_a_violation"
+      ],
+      "notes": "A dict subclass whose item access raises stands in for the throwing getter; the type gate rejects it at the root before any member is read. A second assertion uses a member whose __class__ probe raises, contained at the member's own path."
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-treats-present-undefined-as-missing-when-required-then-rejects-other-lossy-objects",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > treats present undefined as missing when required, then rejects other lossy objects",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_lossy_objects"
+      ],
+      "notes": "Python has no undefined, so only the missing-key half of the requiredness check applies. The lossy objects are a non-finite member and a non-dict object."
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-uses-own-properties-for-requiredness-recursion-and-closed-object-checks",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > uses own properties for requiredness, recursion, and closed-object checks",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_own_property_semantics"
+      ],
+      "notes": "Python dicts have no prototype chain, so names such as toString are ordinary keys."
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-validates-deeply-nested-exact-one-unions-without-using-the-javascript-call-stack",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > validates deeply nested exact-one unions without using the JavaScript call stack",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_deep_unions_are_validated_iteratively"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-validates-dense-arrays-per-index-and-rejects-lossy-arrays",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > validates dense arrays per index and rejects lossy arrays",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_arrays_per_index"
+      ],
+      "notes": "Python lists cannot be sparse; tuples count as arrays and a non-JSON element is the lossy case."
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-validates-exact-one-oneof-semantics-including-overlap",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > validates exact-one oneOf semantics, including overlap",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_exact_one_of"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-validates-object-requiredness-nested-values-and-raw-open-defaults",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > validates object requiredness, nested values, and raw open defaults",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_object_requiredness_and_nesting"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validatejsonschemavalue-validates-scalar-array-object-and-null-roots",
+      "source": "packages/core/tools/tests/json-schema.spec.ts::validateJsonSchemaValue > validates scalar, array, object, and null roots",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_value_roots"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::scoped-execution-dispatch-notifies-every-tools-result-observer-with-the-frozen-final-outcome-and-contains-failures",
       "source": "packages/core/tools/tests/scoped.spec.ts::scoped execution dispatch > notifies every tools/result observer with the frozen final outcome and contains failures",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_phase5_runtime.py::test_tools_result_observer_failures_are_contained"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-presentation-presentcall-presentresult-a-tool-without-presentcall-presentresult-leaves-them-undefined-ui-falls-back-generically",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool presentation (presentCall / presentResult) > a tool without presentCall/presentResult leaves them undefined (UI falls back generically)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_presenters_are_absent_unless_declared"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-presentation-presentcall-presentresult-presentcall-presentresult-validate-softly-malformed-args-return-undefined-never-throw-display-runs-on-replay",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool presentation (presentCall / presentResult) > presentCall/presentResult validate softly: malformed args return undefined, never throw (display runs on replay)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_presenters_validate_softly"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-presentation-presentcall-presentresult-preserves-inline-enum-and-const-literals-in-inferred-arguments",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool presentation (presentCall / presentResult) > preserves inline enum and const literals in inferred arguments",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "TypeScript type-level assertion (expectTypeOf) with no runtime behavior."
+    },
+    {
+      "id": "core/tools::definetool-presentation-presentcall-presentresult-threads-presentcall-presentresult-onto-the-tooldefinition-with-typed-args",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool presentation (presentCall / presentResult) > threads presentCall/presentResult onto the ToolDefinition with typed args",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_presenters_are_threaded_onto_the_definition"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-schema-dsl-converts-parameterschemaspec-to-standard-json-schema-with-required-array",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool / schema DSL > converts ParameterSchemaSpec to standard JSON Schema with required array",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_parameter_specs_compile_to_json_schema"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-schema-dsl-definetool-returns-a-valid-tooldefinition-with-typed-execute",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool / schema DSL > defineTool returns a valid ToolDefinition with typed execute",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_a_defined_tool_registers_and_runs"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-schema-dsl-handles-empty-spec-no-properties-no-required",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool / schema DSL > handles empty spec (no properties, no required)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_parameter_specs_compile_to_json_schema"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-schema-dsl-handles-nested-object-spec",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool / schema DSL > handles nested object spec",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_nested_specs_compile_their_own_required_lists"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-schema-dsl-still-accepts-raw-json-schema-tooldefinition-directly-mcp-interop",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool / schema DSL > still accepts raw JSON-Schema ToolDefinition directly (MCP interop)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_raw_json_schema_definitions_register_directly"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-schema-dsl-type-level-inferargs-maps-required-properties-to-non-optional",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool / schema DSL > type-level: InferArgs maps required properties to non-optional",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "TypeScript type-level assertion (expectTypeOf) with no runtime behavior."
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-a-non-harnesserror-throw-retains-only-its-message",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > a non-HarnessError throw retains only its message",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_thrown_errors_keep_their_identity"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-a-schema-invalid-call-surfaces-the-structured-error-on-the-result",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > a schema-invalid call surfaces the structured error on the result",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_bad_arguments_become_a_structured_error"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-a-tool-throwing-a-harnesserror-surfaces-its-name-and-code",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > a tool throwing a HarnessError surfaces its name and code",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_thrown_errors_keep_their_identity"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-attaches-a-positive-finite-timeoutms-to-the-definition",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > attaches a positive-finite timeoutMs to the definition",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_define_tool_keeps_a_valid_timeout"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-omits-timeoutms-when-not-declared",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > omits timeoutMs when not declared",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_define_tool_keeps_a_valid_timeout"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-raw-registered-tools-are-not-validated-by-definetool-mcp-keeps-its-own",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > raw-registered tools are NOT validated by defineTool (MCP keeps its own)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_raw_tools_validate_their_own_input"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-returns-an-iserror-result-with-the-violations-when-the-model-sends-bad-args",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > returns an isError result with the violations when the model sends bad args",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_bad_arguments_become_a_structured_error"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-runs-execute-normally-when-args-are-valid",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > runs execute normally when args are valid",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_valid_arguments_run_the_body"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-throws-when-timeoutms-is-non-finite",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > throws when timeoutMs is non-finite",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_define_tool_rejects_an_invalid_timeout"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-throws-when-timeoutms-is-zero-or-negative",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > throws when timeoutMs is zero or negative",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_define_tool_rejects_an_invalid_timeout"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::definetool-validation-the-runtime-validation-agent-note-part-1-toolargserror-carries-a-stable-code-and-the-violation-list",
+      "source": "packages/core/tools/tests/tools.spec.ts::defineTool validation (the runtime-validation Agent Note, part 1) > ToolArgsError carries a stable code and the violation list",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_tool_args_error_shape"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::executes-raw-native-calls-without-an-agent-or-session-and-keeps-input-order",
+      "source": "packages/core/tools/tests/tools.spec.ts::executes raw native calls without an Agent or Session and keeps input order",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_raw_calls_run_without_an_agent_and_keep_order"
       ],
       "notes": ""
     },
@@ -3691,11 +4199,136 @@
       "notes": ""
     },
     {
+      "id": "core/tools::schema-dsl-edge-cases-emits-default-value-in-json-schema-property",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL edge cases > emits default value in JSON Schema property",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_property_annotations_are_emitted_only_when_given"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::schema-dsl-edge-cases-emits-enum-values-in-json-schema-property",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL edge cases > emits enum values in JSON Schema property",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_property_annotations_are_emitted_only_when_given"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::schema-dsl-edge-cases-handles-array-items-without-nested-properties-plain-type-array",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL edge cases > handles array items without nested properties (plain type array)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_arrays_and_all_optional_objects_compile_plainly"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::schema-dsl-edge-cases-handles-array-with-no-items-items-omitted",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL edge cases > handles array with no items (items omitted)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_arrays_and_all_optional_objects_compile_plainly"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::schema-dsl-edge-cases-handles-enum-and-default-together-in-one-property",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL edge cases > handles enum and default together in one property",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_property_annotations_are_emitted_only_when_given"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::schema-dsl-edge-cases-handles-nested-object-with-all-optional-properties-no-required-array",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL edge cases > handles nested object with all-optional properties (no required array)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_arrays_and_all_optional_objects_compile_plainly"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::schema-dsl-edge-cases-omits-description-enum-default-keys-when-not-specified",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL edge cases > omits description, enum, default keys when not specified",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_property_annotations_are_emitted_only_when_given"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::schema-dsl-optional-and-nested-contracts-inferargs-makes-non-required-keys-genuinely-optional-omittable",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL optional and nested contracts > InferArgs makes non-required keys genuinely optional (omittable)",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "TypeScript type-level assertion (expectTypeOf) with no runtime behavior."
+    },
+    {
+      "id": "core/tools::schema-dsl-optional-and-nested-contracts-inferargs-recurses-into-array-items-including-arrays-of-objects",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL optional and nested contracts > InferArgs recurses into array items, including arrays of objects",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "TypeScript type-level assertion (expectTypeOf) with no runtime behavior."
+    },
+    {
+      "id": "core/tools::schema-dsl-optional-and-nested-contracts-reports-messages-from-non-error-throws-throw-message",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL optional and nested contracts > reports messages from non-Error throws (throw { message })",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "JavaScript can throw values that are not Error objects; Python can only raise exceptions."
+    },
+    {
+      "id": "core/tools::schema-dsl-optional-and-nested-contracts-reports-messages-from-throws-of-non-objects-throw-string",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL optional and nested contracts > reports messages from throws of non-objects (throw \"string\")",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "JavaScript can throw values that are not Error objects; Python can only raise exceptions."
+    },
+    {
+      "id": "core/tools::schema-dsl-optional-and-nested-contracts-reports-messages-from-throws-of-objects-without-message-property",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL optional and nested contracts > reports messages from throws of objects without message property",
+      "classification": "not-applicable",
+      "python_tests": [],
+      "notes": "JavaScript can throw values that are not Error objects; Python can only raise exceptions."
+    },
+    {
+      "id": "core/tools::schema-dsl-optional-and-nested-contracts-runtime-json-schema-matches-the-array-of-objects-inference",
+      "source": "packages/core/tools/tests/tools.spec.ts::schema DSL optional and nested contracts > runtime JSON Schema matches the array-of-objects inference",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_nested_specs_compile_their_own_required_lists"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::settles-every-unowned-call-when-cancellation-precedes-the-batch",
       "source": "packages/core/tools/tests/tools.spec.ts::settles every unowned call when cancellation precedes the batch",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_tool_pipeline.py::test_cancellation_before_the_batch_settles_every_call"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-a-block-decision-can-also-attach-additionalcontexts",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > a block decision can ALSO attach additionalContexts",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_post_execute_decisions_attach_contexts"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-a-pre-execute-deny-short-circuits-before-tools-execute-the-seam-never-runs",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > a pre-execute deny short-circuits before tools/execute (the seam never runs)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_denied_call_never_enters_tools_execute"
       ],
       "notes": ""
     },
@@ -3718,6 +4351,42 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-a-tools-execute-listener-can-short-circuit-dispatch-by-returning-a-result-without-next",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > a tools/execute listener can short-circuit dispatch by returning a result without next()",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_wrapper_can_short_circuit_dispatch"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-a-tools-post-execute-block-turns-the-call-into-an-iserror-with-corrective-feedback",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > a tools/post-execute block turns the call into an isError with corrective feedback",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_post_execute_accept_and_block"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-a-tools-post-execute-listener-can-replace-the-result-content-accept",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > a tools/post-execute listener can replace the result content (accept) ",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_post_execute_accept_and_block"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-an-ask-decision-degrades-to-deny-when-no-approval-seam-is-mounted",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > an ask decision degrades to deny when no approval seam is mounted",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_ask_with_a_reason_degrades_to_that_denial"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::toolruntime-an-ask-decision-with-no-reason-degrades-to-deny-with-a-default-message",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > an ask decision with no reason degrades to deny with a default message",
       "classification": "ported",
@@ -3727,11 +4396,90 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-ask-routing-through-ctx-approval-denies-an-agent-less-execution-without-asking-nothing-to-route-or-audit-through",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ask routing through ctx.approval > denies an agent-less execution without asking — nothing to route or audit through",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_an_agent_less_ask_is_denied_without_asking"
+      ],
+      "notes": "The user-approval plugin lives outside the core package, so a stand-in approval seam returns each ApprovalOutcome directly instead of the real ApprovalService."
+    },
+    {
+      "id": "core/tools::toolruntime-ask-routing-through-ctx-approval-denies-with-the-cancellation-reason-on-cancelled",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ask routing through ctx.approval > denies with the cancellation reason on cancelled",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_approval_outcomes_deny_with_distinct_reasons"
+      ],
+      "notes": "The user-approval plugin lives outside the core package, so a stand-in approval seam returns each ApprovalOutcome directly instead of the real ApprovalService."
+    },
+    {
+      "id": "core/tools::toolruntime-ask-routing-through-ctx-approval-denies-with-the-no-channel-reason-when-the-seam-is-mounted-but-nobody-answers",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ask routing through ctx.approval > denies with the no-channel reason when the seam is mounted but nobody answers",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_approval_outcomes_deny_with_distinct_reasons"
+      ],
+      "notes": "The user-approval plugin lives outside the core package, so a stand-in approval seam returns each ApprovalOutcome directly instead of the real ApprovalService."
+    },
+    {
+      "id": "core/tools::toolruntime-ask-routing-through-ctx-approval-denies-with-the-user-rejection-reason-on-rejected",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ask routing through ctx.approval > denies with the user-rejection reason on rejected",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_approval_outcomes_deny_with_distinct_reasons"
+      ],
+      "notes": "The user-approval plugin lives outside the core package, so a stand-in approval seam returns each ApprovalOutcome directly instead of the real ApprovalService."
+    },
+    {
       "id": "core/tools::toolruntime-ask-routing-through-ctx-approval-dispatches-the-tool-when-the-answerer-grants-allowed-once-forwarding-the-ask-fields",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ask routing through ctx.approval > dispatches the tool when the answerer grants allowed-once, forwarding the ask fields",
-      "classification": "ported",
+      "classification": "adapted",
       "python_tests": [
         "tests/core/test_phase5_runtime.py::test_ask_uses_the_optional_approval_service"
+      ],
+      "notes": "The user-approval plugin lives outside the core package, so a stand-in approval seam returns each ApprovalOutcome directly instead of the real ApprovalService."
+    },
+    {
+      "id": "core/tools::toolruntime-ask-routing-through-ctx-approval-returns-aborted-before-dispatch-when-caller-cancellation-overtakes-approval",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ask routing through ctx.approval > returns ABORTED_BEFORE_DISPATCH when caller cancellation overtakes approval",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_cancellation_overtaking_approval_skips_dispatch"
+      ],
+      "notes": "The user-approval plugin lives outside the core package, so a stand-in approval seam returns each ApprovalOutcome directly instead of the real ApprovalService."
+    },
+    {
+      "id": "core/tools::toolruntime-ask-routing-through-ctx-approval-turns-a-rogue-outcome-from-a-non-conforming-approval-stand-in-into-an-iserror-result",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ask routing through ctx.approval > turns a rogue outcome from a NON-conforming approval stand-in into an isError result",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_rogue_approval_outcome_is_an_error_result"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-carries-a-nested-conclusion-on-the-nested-result-for-its-composite-to-forward",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > carries a nested conclusion on the nested result for its composite to forward",
+      "classification": "deferred",
+      "python_tests": [],
+      "notes": "Needs nested composite dispatch (a tool running other tools through the pipeline), which the Python runtime does not provide yet."
+    },
+    {
+      "id": "core/tools::toolruntime-classifies-a-throwing-body-snapshot-as-invalid-tool-output",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > classifies a throwing body snapshot as invalid tool output",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_throwing_body_snapshot_is_invalid_output"
+      ],
+      "notes": "A member whose __class__ probe raises stands in for an enumerable JavaScript getter that throws while the value is snapshotted."
+    },
+    {
+      "id": "core/tools::toolruntime-composes-pre-post-waterfalls-around-dispatch-sandbox-wrap-pattern",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > composes pre + post waterfalls around dispatch (sandbox-wrap pattern)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_pre_execute_wrapper_and_post_execute_run_in_order"
       ],
       "notes": ""
     },
@@ -3745,6 +4493,24 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-contains-a-throwing-output-s-projector-as-one-failed-call",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > contains a throwing output.%s projector as one failed call",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_a_throwing_projector_is_one_failed_call"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-contains-a-throwing-output-s-snapshot-as-one-failed-call",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > contains a throwing output.%s snapshot as one failed call",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_throwing_projection_snapshot_is_one_failed_call"
+      ],
+      "notes": "A member whose __class__ probe raises stands in for an enumerable JavaScript getter that throws while the value is snapshotted."
+    },
+    {
       "id": "core/tools::toolruntime-derives-a-stable-failure-message-from-non-text-or-empty-block-feedback",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > derives a stable failure message from non-text or empty block feedback",
       "classification": "ported",
@@ -3754,11 +4520,92 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-executes-a-tool-and-returns-its-content",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > executes a tool and returns its content",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_execution_returns_content_and_notifies"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-fails-a-post-execute-decision-that-replaces-both-projections-or-supplies-an-invalid-value",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > fails a post-execute decision that replaces both projections or supplies an invalid value",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_invalid_post_execute_replacements_fail_the_call"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-fails-value-replacement-when-the-owning-tool-disappears-before-post-policy-resolves",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > fails value replacement when the owning tool disappears before post-policy resolves",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_value_replacement_needs_the_tool_to_remain"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-fails-wrapper-authored-success-normalization-when-the-owning-tool-disappears",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > fails wrapper-authored success normalization when the owning tool disappears",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_wrapper_success_needs_the_tool_to_remain"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-finalizes-errors-discovered-while-snapshotting-non-content-result-fields",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > finalizes errors discovered while snapshotting non-content result fields",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_snapshot_errors_still_pass_through_the_finalizer"
+      ],
+      "notes": "A member whose __class__ probe raises stands in for an enumerable JavaScript getter that throws while the value is snapshotted."
+    },
+    {
+      "id": "core/tools::toolruntime-freezes-core-dispatch-outcomes-before-around-and-post-listeners-can-observe-them",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > freezes core dispatch outcomes before around and post listeners can observe them",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_dispatch_outcomes_are_frozen_for_listeners"
+      ],
+      "notes": "Frozen Python mappings refuse assignment with TypeError; the test records the refusal instead of calling Object.isFrozen."
+    },
+    {
       "id": "core/tools::toolruntime-fuses-caller-cancellation-back-into-a-wrapper-replacement-for-the-running-body",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > fuses caller cancellation back into a wrapper replacement for the running body",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_tool_pipeline.py::test_caller_cancellation_reaches_a_body_under_a_replaced_signal"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-get-get-returns-the-registered-tool-definition",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime.get > get() returns the registered tool definition",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_get_returns_the_definition_or_none"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-get-get-returns-undefined-for-unknown-tool-names",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime.get > get() returns undefined for unknown tool names",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_get_returns_the_definition_or_none"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-keeps-deferred-contexts-when-a-composite-tool-throws-but-drops-them-when-the-outer-call-is-blocked",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > keeps deferred contexts when a composite tool throws, but drops them when the outer call is blocked",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_deferred_contexts_survive_failure_but_not_a_block"
       ],
       "notes": ""
     },
@@ -3781,6 +4628,56 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-lets-a-tools-pre-execute-listener-deny-a-call-permission-pattern",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > lets a tools/pre-execute listener deny a call (permission pattern)",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_pre_execute_denial_keeps_its_info_and_freezes_the_result"
+      ],
+      "notes": "Frozen Python mappings refuse assignment with TypeError; the test records the refusal instead of calling Object.isFrozen."
+    },
+    {
+      "id": "core/tools::toolruntime-lets-argument-materialization-failure-win-over-a-pre-aborted-signal",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > lets argument materialization failure win over a pre-aborted signal",
+      "classification": "deferred",
+      "python_tests": [],
+      "notes": "Needs upstream's single-call pipeline path (executeToolFixture). Python exposes only batches, where a pre-aborted call is skipped without a tools/result notification."
+    },
+    {
+      "id": "core/tools::toolruntime-maps-an-explicit-pre-execute-cancellation-to-the-canonical-before-dispatch-result",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > maps an explicit pre-execute cancellation to the canonical before-dispatch result",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_explicit_cancel_decision_is_aborted_before_dispatch"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-materializes-a-pre-aborted-call-and-publishes-one-result-without-entering-pipeline-phases",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > materializes a pre-aborted call and publishes one result without entering pipeline phases",
+      "classification": "deferred",
+      "python_tests": [],
+      "notes": "Needs upstream's single-call pipeline path (executeToolFixture). Python exposes only batches, where a pre-aborted call is skipped without a tools/result notification."
+    },
+    {
+      "id": "core/tools::toolruntime-normalizes-a-contract-violating-non-cloneable-result-before-final-notification",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > normalizes a contract-violating non-cloneable result before final notification",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_non_json_presentation_metadata_is_an_output_error"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-normalizes-a-hostile-thrown-value-whose-inspection-and-coercion-both-throw",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > normalizes a hostile thrown value whose inspection and coercion both throw",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_an_unprintable_exception_is_still_an_error_result"
+      ],
+      "notes": "Python can only raise exceptions; one whose __str__ raises stands in for a thrown value whose inspection and coercion both throw."
+    },
+    {
       "id": "core/tools::toolruntime-normalizes-a-throwing-content-projector-without-running-post-execute",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > normalizes a throwing content projector without running post-execute",
       "classification": "ported",
@@ -3790,11 +4687,234 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-normalizes-a-throwing-final-content-callback-without-invoking-it-again",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > normalizes a throwing final content callback without invoking it again",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_a_throwing_finalizer_runs_once"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-normalizes-wrapper-authored-failure-metadata-and-contexts",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > normalizes wrapper-authored failure metadata and contexts",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_wrapper_failures_keep_metadata_and_contexts"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-omits-meta-when-no-presentation-projector-is-declared",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > omits meta when no presentation projector is declared",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_presentation_metadata_is_projected_when_declared"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-post-execute-additionalcontexts-ride-on-the-result-for-the-loop-to-buffer",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > post-execute additionalContexts ride on the result for the loop to buffer",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_post_execute_decisions_attach_contexts"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-a-post-policy-failure-that-settles-after-cancellation",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves a post-policy failure that settles after cancellation",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_failures_settling_after_cancellation_are_kept"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-a-pre-execute-denial-that-settles-after-cancellation",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves a pre-execute denial that settles after cancellation",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_failures_settling_after_cancellation_are_kept"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-a-tool-owned-failure-after-the-body-observes-cancellation",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves a tool-owned failure after the body observes cancellation",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_tool_failure_after_cancellation_is_kept"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-additionalcontexts-supplied-by-an-around-dispatch-result",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves additionalContexts supplied by an around-dispatch result",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_wrapper_supplied_contexts_are_kept"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-an-around-dispatch-failure-that-settles-after-cancellation",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves an around-dispatch failure that settles after cancellation",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_failures_settling_after_cancellation_are_kept"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-an-async-pre-execute-failure-that-settles-after-cancellation",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves an async pre-execute failure that settles after cancellation",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_failures_settling_after_cancellation_are_kept"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-deferred-loading-through-registry-and-prompt-schema-projection",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves deferred loading through registry and prompt schema projection",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_deferred_loading_reaches_schemas_and_the_prompt"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-preserves-structured-error-info-when-a-tools-pre-execute-listener-throws-harnesserror",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves structured error info when a tools/pre-execute listener throws HarnessError",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_throwing_policy_keeps_its_harness_error_info"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::toolruntime-preserves-tool-deferred-execute-wrapper-and-post-execute-contexts-in-order",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves tool-deferred, execute-wrapper, and post-execute contexts in order",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_phase5_runtime.py::test_tool_contexts_survive_each_pipeline_layer_in_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-projects-presentation-metadata-for-native-and-nested-composite-dispatches",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > projects presentation metadata for native and nested composite dispatches",
+      "classification": "deferred",
+      "python_tests": [],
+      "notes": "Needs nested composite dispatch (a tool running other tools through the pipeline), which the Python runtime does not provide yet."
+    },
+    {
+      "id": "core/tools::toolruntime-projects-presentation-metadata-from-the-canonical-value",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > projects presentation metadata from the canonical value",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_presentation_metadata_is_projected_when_declared"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-re-fuses-the-caller-signal-with-an-around-dispatch-replacement-for-the-body",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > re-fuses the caller signal with an around-dispatch replacement for the body",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_the_body_gets_the_caller_signal_fused_with_a_replacement"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rechecks-caller-cancellation-after-an-async-around-dispatch-wrapper-delegates",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rechecks caller cancellation after an async around-dispatch wrapper delegates",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_cancellation_while_a_policy_waits_skips_dispatch"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-register-returns-the-exact-effect-disposer-a-composite-yield-nests-the-teardown-in-order",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > register() returns the EXACT effect disposer: a composite yield nests the teardown in order",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_register_disposer_nests_inside_a_composite_effect"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-registers-tools-exposes-schemas-and-feeds-the-system-prompt-assembly",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > registers tools, exposes schemas, and feeds the system-prompt assembly",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_registration_feeds_the_prompt_assembly"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rejects-a-non-positive-or-non-finite-registration-timeout",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rejects a non-positive or non-finite registration timeout",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_registration_rejects_an_invalid_timeout"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rejects-duplicate-names-and-unregisters-on-fiber-dispose-hmr-safety",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rejects duplicate names and unregisters on fiber dispose (HMR safety)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_duplicates_are_rejected_and_unload_unregisters"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rejects-lossy-and-schema-mismatched-body-values-before-post-execute",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rejects lossy and schema-mismatched body values before post-execute",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_lossy_and_mismatched_values_are_output_errors"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rejects-removed-execution-configuration-j-during-plugin-mounting",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rejects removed execution configuration %j during plugin mounting",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_removed_execution_configuration_is_rejected"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rejects-schema-projection-when-a-raw-registration-is-not-lossless-json",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rejects schema projection when a raw registration is not lossless JSON",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_lossy_parameters_fail_schema_projection"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rejects-value-replacement-on-a-failed-dispatch",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rejects value replacement on a failed dispatch",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_value_replacement_of_a_failed_call_fails"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-replaces-a-canonical-value-without-manufacturing-additional-context",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > replaces a canonical value without manufacturing additional context",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_value_replacement_adds_no_context"
       ],
       "notes": ""
     },
@@ -3817,11 +4937,90 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-reports-cancellation-before-an-executor-refusal-without-entering-policy",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > reports cancellation before an executor refusal without entering policy",
+      "classification": "deferred",
+      "python_tests": [],
+      "notes": "Drives ToolExecutionPipeline.prepare and complete directly; Python has no public pipeline class yet."
+    },
+    {
+      "id": "core/tools::toolruntime-requires-every-raw-registration-to-declare-its-canonical-output",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > requires every raw registration to declare its canonical output",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_registration_requires_output"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::toolruntime-restores-the-required-caller-signal-after-around-dispatch",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > restores the required caller signal after around dispatch",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_tool_pipeline.py::test_post_execute_sees_the_caller_signal_again"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-returns-a-callable-disposer-from-register-that-unregisters-the-tool",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > returns a callable disposer from register() that unregisters the tool",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_register_returns_a_disposer"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-returns-an-iserror-result-when-a-tools-execute-listener-throws",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > returns an isError result when a tools/execute listener throws",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_throwing_listeners_become_error_results"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-returns-an-iserror-result-when-a-tools-post-execute-listener-throws",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > returns an isError result when a tools/post-execute listener throws",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_throwing_listeners_become_error_results"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-returns-an-iserror-result-when-a-tools-pre-execute-listener-throws",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > returns an isError result when a tools/pre-execute listener throws",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_throwing_listeners_become_error_results"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-returns-iserror-results-for-unknown-tools-and-throwing-tools",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > returns isError results for unknown tools and throwing tools",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_unknown_and_throwing_tools_are_error_results"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-revalidates-a-cached-canonical-result-returned-from-a-different-dispatch",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > revalidates a cached canonical result returned from a different dispatch",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_a_borrowed_canonical_result_is_revalidated"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-rolls-back-the-tool-entry-when-a-tools-change-listener-throws-p1-1",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > rolls back the tool entry when a tools/change listener throws (P1-1)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_a_throwing_change_listener_rolls_the_registration_back"
       ],
       "notes": ""
     },
@@ -3844,11 +5043,83 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-runs-tools-execute-after-an-allowed-pre-execute-around-dispatch-and-before-post-execute",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > runs tools/execute after an allowed pre-execute, around dispatch, and before post-execute",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_pre_execute_wrapper_and_post_execute_run_in_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-schemas-drops-host-callbacks-they-must-never-reach-the-model",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > schemas() drops host callbacks — they must never reach the model",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_schemas_carry_only_model_fields"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-schemas-excludes-timeoutms-the-budget-must-never-reach-the-model",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > schemas() excludes timeoutMs — the budget must never reach the model",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_schemas_carry_only_model_fields"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-schemas-snapshots-deeply-nested-parameters-without-using-structured-clone-recursion",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > schemas() snapshots deeply nested parameters without using structured-clone recursion",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_deep_parameter_schemas_are_projected_iteratively"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-schemas-snapshots-tool-schemas-instead-of-exposing-registry-objects",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > schemas() snapshots tool schemas instead of exposing registry objects",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_schemas_are_snapshots"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-settles-accepted-calls-after-the-actual-native-executor-fiber-unloads",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > settles accepted calls after the actual native executor fiber unloads",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_accepted_calls_settle_after_the_executor_unloads"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::toolruntime-skips-dispatch-when-an-around-wrapper-supplies-an-already-aborted-signal",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > skips dispatch when an around wrapper supplies an already-aborted signal",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_tool_pipeline.py::test_wrapper_supplied_aborted_signal_skips_dispatch"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-skips-dispatch-when-caller-cancellation-arrives-while-pre-execute-awaits",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > skips dispatch when caller cancellation arrives while pre-execute awaits",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_cancellation_while_a_policy_waits_skips_dispatch"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-toolnotfounderror-carries-a-stable-message-and-code",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > ToolNotFoundError carries a stable message and code",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_tool_not_found_error_shape"
       ],
       "notes": ""
     },
@@ -3876,6 +5147,105 @@
       "classification": "ported",
       "python_tests": [
         "tests/core/test_tool_pipeline.py::test_cancellation_drains_an_uncooperative_body"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-allows-extra-keys-no-additionalproperties-false-and-omitted-optionals",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > allows extra keys (no additionalProperties:false) and omitted optionals",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_allows_extra_keys"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-checks-enum-membership",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > checks enum membership",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_checks_enum_membership"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-does-not-apply-defaults-validation-only",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > does not apply defaults (validation only)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_does_not_apply_defaults"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-enforces-type-correct-scalar-enum-declarations",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > enforces type-correct scalar enum declarations",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_enforces_typed_enums"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-flags-a-missing-required-key-and-a-required-key-present-as-undefined",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > flags a missing required key and a required key present as undefined",
+      "classification": "adapted",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_flags_missing_required_keys"
+      ],
+      "notes": "Python has no undefined, so only the missing-key half applies."
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-recurses-into-array-items-and-an-array-without-items-only-type-checks",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > recurses into array items (and an array without items only type-checks)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_recurses_into_arrays"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-recurses-into-nested-objects-and-an-object-without-properties-only-type-checks",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > recurses into nested objects (and an object without properties only type-checks)",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_recurses_into_objects"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-rejects-an-unknown-schema-type-at-the-author-boundary",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > rejects an unknown schema type at the author boundary",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_rejects_unknown_types"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-returns-for-valid-args-and-is-total-over-malformed-input",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > returns [] for valid args and is total over malformed input",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_is_total"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-type-checks-primitives",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > type-checks primitives",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_type_checks_primitives"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::validateargs-the-runtime-validation-agent-note-part-1-validates-arrays-of-objects-element-wise",
+      "source": "packages/core/tools/tests/tools.spec.ts::validateArgs (the runtime-validation Agent Note, part 1) > validates arrays of objects element-wise",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_schema.py::test_validate_args_checks_array_elements"
       ],
       "notes": ""
     },
