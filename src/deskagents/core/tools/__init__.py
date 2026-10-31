@@ -7,12 +7,11 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import json
 import logging
 import math
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from deepseek_cordis import Context, Service, current_context
 
@@ -26,7 +25,8 @@ from deskagents.core.scope import (
     scope_target,
 )
 from deskagents.llm import HarnessError, create_tool_result_message
-from deskagents.util.values import deep_freeze, snapshot_json_value
+from deskagents.util.abort import AbortSignal, is_aborted, throw_if_aborted
+from deskagents.util.values import deep_freeze, is_json_value, parse_json, snapshot_json_value
 
 from .json_schema import (
     JsonSchemaError,
@@ -95,7 +95,14 @@ class ToolBatchExecutionError(Exception):
 
 
 def _aborted(signal: object) -> bool:
-    return bool(getattr(signal, "aborted", False))
+    return is_aborted(signal)
+
+
+def _error_message(error: BaseException) -> str:
+    try:
+        return str(error)
+    except Exception:
+        return "<unprintable thrown value>"
 
 
 def _failure(error: BaseException) -> dict[str, Any]:
@@ -104,10 +111,11 @@ def _failure(error: BaseException) -> dict[str, Any]:
         if isinstance(error, HarnessError)
         else None
     )
+    message = _error_message(error)
     return {
         "isError": True,
-        "error": {"message": str(error), **({"info": info} if info else {})},
-        "content": [{"type": "text", "text": f"Error: {error}"}],
+        "error": {"message": message, **({"info": info} if info else {})},
+        "content": [{"type": "text", "text": f"Error: {message}"}],
     }
 
 
@@ -122,26 +130,80 @@ def _denied(reason: str, info: object = None) -> dict[str, Any]:
     }
 
 
-def _failure_message_from_content(content: object) -> str:
-    if isinstance(content, Sequence) and not isinstance(content, str | bytes):
-        text = "\n".join(
-            block["text"]
-            for block in content
-            if isinstance(block, Mapping)
-            and block.get("type") == "text"
-            and isinstance(block.get("text"), str)
-            and block["text"]
-        )
-        if text:
-            return text
-    return "tool result blocked by post-execute policy"
+def _cancelled(message: str, code: str, prior: Mapping[str, Any] | None) -> dict[str, Any]:
+    contexts = list((prior or {}).get("additionalContexts", ()))
+    return {
+        "isError": True,
+        "error": {"message": message, "info": {"name": "AbortError", "code": code}},
+        "content": [{"type": "text", "text": f"Error: {message}"}],
+        **({"additionalContexts": contexts} if contexts else {}),
+    }
+
+
+def _aborted_result(prior: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    return _cancelled("tool call aborted", TOOL_ABORTED, prior)
+
+
+def _aborted_before_dispatch_result(prior: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    return _cancelled("tool call aborted before dispatch", TOOL_ABORTED_BEFORE_DISPATCH, prior)
+
+
+def _failure_message_from_content(content: Sequence[Mapping[str, Any]]) -> str:
+    text = "\n".join(
+        block["text"] if block["type"] == "text" else f"[{block['type']} content]"
+        for block in content
+    )
+    return text or "tool result blocked by post-execute policy"
+
+
+def _materialize(result: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Snapshot and freeze one result, rejecting data that is not lossless JSON."""
+    presentation = {
+        "content": result["content"],
+        **({"meta": result["meta"]} if "meta" in result else {}),
+        **(
+            {"additionalContexts": result["additionalContexts"]}
+            if "additionalContexts" in result
+            else {}
+        ),
+    }
+    candidate: dict[str, Any] = (
+        {"isError": True, "error": result["error"], **presentation}
+        if result["isError"]
+        else {
+            "isError": False,
+            **presentation,
+            **({"concludesTurn": True} if result.get("concludesTurn") is True else {}),
+        }
+    )
+    if not is_json_value(candidate):
+        raise TypeError("tool result must be losslessly JSON-serializable")
+    frozen = cast(Mapping[str, Any], snapshot_json_value(candidate, freeze=True))
+    if result["isError"]:
+        return frozen
+    return cast(Mapping[str, Any], deep_freeze({**frozen, "value": result.get("value")}))
+
+
+def _parse_arguments(raw: object) -> object:
+    """Model arguments as ``JSON.parse`` reads them; empty is ``{}``, malformed stays text."""
+    if not raw:
+        return {}
+    if not isinstance(raw, str):
+        return raw
+    try:
+        return parse_json(raw)
+    except ValueError:
+        return raw
 
 
 class ToolRunContext(Mapping[str, Any]):
+    """One call's execution view. A ``tools/execute`` wrapper may replace ``signal``."""
+
     def __init__(self, values: Mapping[str, Any]) -> None:
         self._values = dict(values)
         self.additional_contexts: list[Mapping[str, Any]] = []
         self.concludes_turn = False
+        self._settled = False
 
     def __getitem__(self, key: str) -> Any:
         return self._values[key]
@@ -152,11 +214,43 @@ class ToolRunContext(Mapping[str, Any]):
     def __len__(self) -> int:
         return len(self._values)
 
+    @property
+    def signal(self) -> Any:
+        return self._values["signal"]
+
+    @signal.setter
+    def signal(self, signal: object) -> None:
+        if self._settled:
+            raise TypeError("a settled tool execution is read-only")
+        self._values["signal"] = signal
+
     def defer_context(self, context: Mapping[str, Any]) -> None:
         self.additional_contexts.append(context)
 
     def conclude_turn(self) -> None:
         self.concludes_turn = True
+
+
+@dataclass(eq=False)
+class _Call:
+    """Scheduler state for one call, kept outside the wrapper-visible execution."""
+
+    block: Mapping[str, Any]
+    execution: ToolRunContext
+    caller_signal: object
+    scope: Callable[[Context], bool]
+    project: Callable[..., Any] | None = None
+    finalize: Callable[..., Any] | None = None
+    body_invoked: bool = False
+
+
+@dataclass(eq=False)
+class _Scheduled:
+    """A prepared call: ``dispatch``, or a result that does or does not get post-execute."""
+
+    kind: Literal["dispatch", "post-result", "final-result"]
+    call: _Call
+    result: Mapping[str, Any] | None = None
 
 
 @dataclass
@@ -351,8 +445,7 @@ class ToolsService(Service):
 
     async def resolve(self, context: Mapping[str, Any]) -> ResolvedToolSet:
         agent, signal = context["agent"], context["signal"]
-        if _aborted(signal):
-            raise asyncio.CancelledError
+        throw_if_aborted(signal)
         visible, registrations, _ = self._view(agent)
         admitted: dict[str, Mapping[str, Any]] = {}
         for name, definition in visible.items():
@@ -363,8 +456,7 @@ class ToolsService(Service):
                     enabled = await enabled
             except Exception as error:
                 raise ToolActivationError(name, error) from error
-            if _aborted(signal):
-                raise asyncio.CancelledError
+            throw_if_aborted(signal)
             if enabled:
                 admitted[name] = definition
         return ResolvedToolSet(agent, admitted, self)
@@ -520,35 +612,83 @@ class NativeToolExecutor:
             }, False
         raise ValueError(f"unknown approval outcome: {outcome!r}")
 
+    def _execution_mode(self, block: Mapping[str, Any], input_: Mapping[str, Any]) -> str:
+        """Only an exact ``True`` from the visible tool's classifier runs in parallel."""
+        tool = self.tools.executable(block["name"], input_.get("agent"), input_.get("toolSet"))
+        classifier = None if tool is None else tool.get("isConcurrencySafe")
+        if not callable(classifier):
+            return "exclusive"
+        try:
+            parallel = classifier(_parse_arguments(block.get("arguments"))) is True
+        except Exception:
+            return "exclusive"
+        return "parallel" if parallel else "exclusive"
+
+    def _create(self, block: Mapping[str, Any], input_: Mapping[str, Any]) -> _Call | _Scheduled:
+        signal = input_["signal"]
+        agent = input_.get("agent")
+        tool = self.tools.executable(block["name"], agent, input_.get("toolSet"))
+        project = None if tool is None else tool.get("projectContent")
+        finalize = None if tool is None else tool.get("finalizeContent")
+        values = {
+            "callId": block["id"],
+            "rootCallId": block["id"],
+            "name": block["name"],
+            "agent": agent,
+            "toolSet": input_.get("toolSet"),
+            "signal": signal,
+            "token": object(),
+        }
+        arguments = _parse_arguments(block.get("arguments"))
+        scope = scope_target(self.tools, agent)
+        if not is_json_value(arguments):
+            failed = _Call(
+                block,
+                ToolRunContext({**values, "arguments": None}),
+                signal,
+                scope,
+                finalize=finalize if callable(finalize) else None,
+            )
+            error = TypeError("tool execution arguments must be losslessly JSON-serializable")
+            return _Scheduled("final-result", failed, _failure(error))
+        return _Call(
+            block,
+            ToolRunContext({**values, "arguments": deep_freeze(snapshot_json_value(arguments))}),
+            signal,
+            scope,
+            project=project if callable(project) else None,
+            finalize=finalize if callable(finalize) else None,
+        )
+
     def _success_result(
         self,
-        call: Mapping[str, Any],
-        arguments: object,
-        execution: ToolRunContext,
+        call: _Call,
         input_: Mapping[str, Any],
         value: object,
     ) -> dict[str, Any]:
-        tool = self.tools.executable(call["name"], input_.get("agent"), input_.get("toolSet"))
+        execution = call.execution
+        name = execution["name"]
+        tool = self.tools.executable(name, input_.get("agent"), input_.get("toolSet"))
         if tool is None:
-            raise ToolNotFoundError(call["name"])
+            raise ToolNotFoundError(name)
+        if not is_json_value(value):
+            raise ToolOutputError(name, ["value is not lossless JSON"])
         detached = snapshot_json_value(value)
-        if detached is None and value is not None:
-            raise ToolOutputError(call["name"], ["value is not lossless JSON"])
         violations = validate_json_schema_value(tool["output"]["schema"], detached)
         if violations:
-            raise ToolOutputError(call["name"], violations)
+            raise ToolOutputError(name, violations)
         frozen = deep_freeze(detached)
+        arguments = execution["arguments"]
         try:
             content = tool["output"]["render"](arguments, frozen)
         except Exception as error:
-            raise ToolOutputError(call["name"], [f"output.render failed: {error}"]) from error
-        projected_content = snapshot_json_value(content)
-        if not isinstance(projected_content, list):
-            raise ToolOutputError(call["name"], ["output.render returned non-lossless JSON"])
+            raise ToolOutputError(name, [f"output.render failed: {error}"]) from error
+        if not isinstance(content, list) or not is_json_value(content):
+            raise ToolOutputError(name, ["output.render returned non-lossless JSON"])
         result: dict[str, Any] = {
             "isError": False,
             "value": frozen,
-            "content": projected_content,
+            "content": snapshot_json_value(content),
             **({"concludesTurn": True} if execution.concludes_turn else {}),
         }
         presentation_meta = tool["output"].get("presentationMeta")
@@ -556,22 +696,15 @@ class NativeToolExecutor:
             try:
                 meta = presentation_meta(arguments, frozen)
             except Exception as error:
-                raise ToolOutputError(
-                    call["name"], [f"output.presentationMeta failed: {error}"]
-                ) from error
-            projected_meta = snapshot_json_value(meta)
-            if projected_meta is None and meta is not None:
-                raise ToolOutputError(
-                    call["name"], ["output.presentationMeta returned non-lossless JSON"]
-                )
-            result["meta"] = projected_meta
+                raise ToolOutputError(name, [f"output.presentationMeta failed: {error}"]) from error
+            if not is_json_value(meta):
+                raise ToolOutputError(name, ["output.presentationMeta returned non-lossless JSON"])
+            result["meta"] = snapshot_json_value(meta)
         return result
 
     def _normalize_dispatch_result(
         self,
-        call: Mapping[str, Any],
-        arguments: object,
-        execution: ToolRunContext,
+        call: _Call,
         input_: Mapping[str, Any],
         candidate: object,
     ) -> dict[str, Any]:
@@ -591,32 +724,29 @@ class NativeToolExecutor:
             }
         if candidate.get("isError") is not False:
             raise TypeError("tools/execute returned a result without isError")
-        result = self._success_result(
-            call,
-            arguments,
-            execution,
-            input_,
-            candidate.get("value"),
-        )
+        result = self._success_result(call, input_, candidate.get("value"))
         if "additionalContexts" in candidate:
             result["additionalContexts"] = candidate["additionalContexts"]
         return result
 
+    def _cancellation_result(self, call: _Call, prior: Mapping[str, Any]) -> dict[str, Any]:
+        """``ABORTED`` once the body started, otherwise ``ABORTED_BEFORE_DISPATCH``."""
+        if call.body_invoked:
+            return _aborted_result(prior)
+        return _aborted_before_dispatch_result(prior)
+
     async def _post_execute(
         self,
-        call: Mapping[str, Any],
-        arguments: object,
-        execution: ToolRunContext,
+        call: _Call,
         input_: Mapping[str, Any],
         result: Mapping[str, Any],
-        scope: Callable[[Context], bool],
     ) -> dict[str, Any]:
         post = self.ctx.waterfall(
             "tools/post-execute",
-            execution,
+            call.execution,
             result,
             next_=lambda: {"kind": "accept"},
-            filter_=scope,
+            filter_=call.scope,
         )
         if inspect.isawaitable(post):
             post = await post
@@ -641,13 +771,7 @@ class NativeToolExecutor:
         if "value" in post:
             if result.get("isError") is True:
                 raise TypeError("tools/post-execute cannot replace the value of a failed result")
-            replaced = self._success_result(
-                call,
-                arguments,
-                execution,
-                input_,
-                post["value"],
-            )
+            replaced = self._success_result(call, input_, post["value"])
             if contexts:
                 replaced["additionalContexts"] = contexts
             return replaced
@@ -660,248 +784,342 @@ class NativeToolExecutor:
             accepted.pop("additionalContexts", None)
         return accepted
 
-    async def _one(
-        self,
-        call: Mapping[str, Any],
-        input_: Mapping[str, Any],
+    async def _prepare(self, block: Mapping[str, Any], input_: Mapping[str, Any]) -> _Scheduled:
+        """Run pre-execute policy, approval and guards. Cancellation skips an unstarted body."""
+        created = self._create(block, input_)
+        if isinstance(created, _Scheduled):
+            return created
+        call, execution = created, created.execution
+        if _aborted(call.caller_signal):
+            return _Scheduled("final-result", call, _aborted_before_dispatch_result())
+        try:
+            decision = self.ctx.waterfall(
+                "tools/pre-execute",
+                execution,
+                next_=lambda: {"kind": "allow"},
+                filter_=call.scope,
+            )
+            if inspect.isawaitable(decision):
+                decision = await decision
+            decision = cast(Mapping[str, Any], decision)
+            approval_cancelled = False
+            if decision.get("kind") == "ask":
+                decision, approval_cancelled = await self._resolve_ask(execution, decision)
+            if approval_cancelled and _aborted(call.caller_signal):
+                return _Scheduled("post-result", call, _aborted_before_dispatch_result())
+            if decision.get("kind") == "cancel":
+                return _Scheduled("post-result", call, _aborted_before_dispatch_result())
+            allowed = decision.get("kind") == "allow"
+            reason = self.tools.check_guards(execution) if allowed else decision.get("reason")
+            if reason is not None:
+                info = decision.get("info") if decision.get("kind") == "deny" else None
+                return _Scheduled("post-result", call, _materialize(_denied(str(reason), info)))
+            if _aborted(call.caller_signal):
+                return _Scheduled("post-result", call, _aborted_before_dispatch_result())
+            return _Scheduled("dispatch", call)
+        except Exception as error:
+            return _Scheduled("final-result", call, _failure(error))
+
+    async def _dispatch(self, call: _Call, input_: Mapping[str, Any]) -> _Scheduled:
+        """Run ``tools/execute`` around the body; tool failures still get post-execute."""
+        execution = call.execution
+        try:
+            canonical: Mapping[str, Any] | None = None
+
+            async def body() -> Mapping[str, Any]:
+                nonlocal canonical
+                canonical = await self._dispatch_body(call, input_)
+                return canonical
+
+            dispatched = self.ctx.waterfall(
+                "tools/execute", execution, next_=body, filter_=call.scope
+            )
+            if inspect.isawaitable(dispatched):
+                dispatched = await dispatched
+            result: Mapping[str, Any] = (
+                canonical
+                if canonical is not None and dispatched is canonical
+                else self._normalize_dispatch_result(call, input_, dispatched)
+            )
+            if execution.additional_contexts:
+                result = {
+                    **result,
+                    "additionalContexts": [
+                        *execution.additional_contexts,
+                        *result.get("additionalContexts", ()),
+                    ],
+                }
+            if _aborted(call.caller_signal) and not result["isError"]:
+                result = self._cancellation_result(call, result)
+            return _Scheduled("post-result", call, result)
+        except Exception as error:
+            return _Scheduled("final-result", call, _failure(error))
+
+    async def _complete(
+        self, scheduled: _Scheduled, input_: Mapping[str, Any]
     ) -> Mapping[str, Any]:
-        signal = input_["signal"]
-        arguments: object
+        """Run post-execute when required, then publish the final materialized result."""
+        call, result = scheduled.call, scheduled.result
+        assert result is not None
+        if scheduled.kind == "final-result":
+            return self._finish(call, result)
         try:
-            arguments = json.loads(call.get("arguments") or "{}")
-        except json.JSONDecodeError:
-            arguments = call.get("arguments")
-        values = {
-            "callId": call["id"],
-            "rootCallId": call["id"],
-            "name": call["name"],
-            "arguments": deep_freeze(snapshot_json_value(arguments)),
-            "agent": input_.get("agent"),
-            "toolSet": input_.get("toolSet"),
-            "signal": signal,
-            "token": object(),
-        }
-        execution = ToolRunContext(values)
-        scope = scope_target(self.tools, input_.get("agent"))
-        result: Mapping[str, Any]
+            project, call.project = call.project, None
+            content = None if project is None else project(call.execution, result)
+            projected = result if content is None else _materialize({**result, "content": content})
+            post = await self._post_execute(call, input_, projected)
+            if _aborted(call.caller_signal) and not post["isError"]:
+                post = self._cancellation_result(call, post)
+            return self._finish(call, post)
+        except Exception as error:
+            return self._finish(call, _failure(error))
+
+    def _finish(self, call: _Call, result: Mapping[str, Any]) -> Mapping[str, Any]:
         try:
-            needs_post = False
-            if _aborted(signal):
-                result = _failure(
-                    HarnessError(
-                        "tool call aborted before dispatch",
-                        TOOL_ABORTED_BEFORE_DISPATCH,
-                    )
-                )
-            else:
-                decision = self.ctx.waterfall(
-                    "tools/pre-execute",
-                    execution,
-                    next_=lambda: {"kind": "allow"},
-                    filter_=scope,
-                )
-                if inspect.isawaitable(decision):
-                    decision = await decision
-                decision = cast(Mapping[str, Any], decision)
-                approval_cancelled = False
-                if decision.get("kind") == "ask":
-                    decision, approval_cancelled = await self._resolve_ask(execution, decision)
-                if decision.get("kind") == "cancel" or (approval_cancelled and _aborted(signal)):
-                    result = _failure(
-                        HarnessError(
-                            "tool call aborted before dispatch",
-                            TOOL_ABORTED_BEFORE_DISPATCH,
-                        )
-                    )
-                    needs_post = True
-                else:
-                    reason = (
-                        self.tools.check_guards(execution)
-                        if decision.get("kind") == "allow"
-                        else decision.get("reason")
-                    )
-                    if reason is not None:
-                        result = _denied(str(reason), decision.get("info"))
-                        needs_post = True
-                    elif _aborted(signal):
-                        result = _failure(
-                            HarnessError(
-                                "tool call aborted before dispatch",
-                                TOOL_ABORTED_BEFORE_DISPATCH,
-                            )
-                        )
-                        needs_post = True
-                    else:
-                        canonical: Mapping[str, Any] | None = None
-
-                        async def dispatch() -> Mapping[str, Any]:
-                            nonlocal canonical
-                            # A thrown or unknown tool is already an error result when a
-                            # tools/execute wrapper's next() returns.
-                            try:
-                                canonical = await self._dispatch_body(
-                                    call, arguments, execution, input_
-                                )
-                            except Exception as error:
-                                canonical = _failure(error)
-                            return canonical
-
-                        dispatched = self.ctx.waterfall(
-                            "tools/execute", execution, next_=dispatch, filter_=scope
-                        )
-                        if inspect.isawaitable(dispatched):
-                            dispatched = await dispatched
-                        result = (
-                            canonical
-                            if dispatched is canonical and canonical is not None
-                            else self._normalize_dispatch_result(
-                                call, arguments, execution, input_, dispatched
-                            )
-                        )
-                        needs_post = True
-            if needs_post:
-                result = await self._post_execute(
-                    call,
-                    arguments,
-                    execution,
-                    input_,
-                    result,
-                    scope,
-                )
-        except BaseException as error:
-            result = _failure(error)
-        final = snapshot_json_value(result, freeze=True)
+            materialized = _materialize(result)
+        except Exception as error:
+            materialized = _materialize(_failure(error))
+        try:
+            final = _materialize(self._final_content(call, materialized))
+        except Exception as error:
+            final = _materialize(_failure(error))
+        execution = call.execution
+        execution._settled = True
         emit_contained(
             self.ctx,
             "tools/result",
             execution,
             final,
-            filter_=scope,
-            describe=f'tool "{call["name"]}" ({call["id"]}): tools/result observer',
+            filter_=call.scope,
+            describe=f'tool "{execution["name"]}" ({execution["callId"]}): tools/result observer',
             log=logger,
         )
-        return {"callId": call["id"], "result": final}
+        return final
 
-    async def _dispatch_body(
-        self,
-        call: Mapping[str, Any],
-        arguments: object,
-        execution: ToolRunContext,
-        input_: Mapping[str, Any],
-    ) -> dict[str, Any]:
-        tool = self.tools.executable(call["name"], input_.get("agent"), input_.get("toolSet"))
-        if tool is None:
-            raise ToolNotFoundError(call["name"])
-        value = await tool["execute"](arguments, execution)
-        return {
-            **self._success_result(call, arguments, execution, input_, value),
-            **(
-                {"additionalContexts": execution.additional_contexts}
-                if execution.additional_contexts
-                else {}
-            ),
-            **({"concludesTurn": True} if execution.concludes_turn else {}),
-        }
+    @staticmethod
+    def _final_content(call: _Call, result: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Apply the tool's ``finalizeContent``, which may only replace ``content``."""
+        if call.finalize is None:
+            return result
+        content = call.finalize(call.execution, result)
+        return result if content is None else {**result, "content": content}
+
+    async def _dispatch_body(self, call: _Call, input_: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Run the body with the caller signal fused into any wrapper replacement.
+
+        Cancellation never abandons a started body; a success that finishes after
+        the signal aborted becomes ``ABORTED``.
+        """
+        execution = call.execution
+        wrapper_signal = execution.signal
+        fused: Any = (
+            wrapper_signal
+            if wrapper_signal is call.caller_signal
+            else AbortSignal.any([call.caller_signal, wrapper_signal])
+        )
+        try:
+            if _aborted(fused):
+                return _aborted_before_dispatch_result()
+            execution.signal = fused
+            try:
+                tool = self.tools.executable(
+                    execution["name"], input_.get("agent"), input_.get("toolSet")
+                )
+                if tool is None:
+                    raise ToolNotFoundError(execution["name"])
+                call.body_invoked = True
+                value = await tool["execute"](execution["arguments"], execution)
+                result = self._success_result(call, input_, value)
+                return _aborted_result(result) if _aborted(fused) else result
+            except Exception as error:
+                return _failure(error)
+            finally:
+                execution.signal = wrapper_signal
+        finally:
+            if fused is not wrapper_signal:
+                fused.detach()
 
     async def execute(self, input_: Mapping[str, Any]) -> Mapping[str, Any]:
-        limit = input_.get("maxParallelToolCalls", self.max_parallel())
-        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        """Run one step's calls with model-ordered policy and results.
+
+        Exclusive calls are barriers; parallel calls share a bounded pool and are
+        reclassified before each start. Every call gets a result: on abort, started
+        calls drain and the rest receive ``ABORTED_BEFORE_DISPATCH`` results.
+        """
+        override = input_.get("maxParallelToolCalls")
+        if override is not None and (
+            not isinstance(override, int) or isinstance(override, bool) or override < 1
+        ):
             raise ValueError("maxParallelToolCalls must be a positive integer")
-        results: list[Mapping[str, Any]] = []
+        if input_.get("log") is not None and input_.get("agent") is None:
+            raise ValueError("logged tool batches require an agent")
+        limit = override if override is not None else self.max_parallel()
         calls = list(input_["calls"])
+        settlement = _BatchSettlement(input_)
+        try:
+            index, concluded = 0, False
+            while index < len(calls):
+                mode = self._execution_mode(calls[index], input_)
+                group = calls[index:] if mode == "parallel" else calls[index : index + 1]
+                consumed, aborted, group_concluded = await self._run_group(
+                    group, mode, limit, settlement, input_
+                )
+                index += consumed
+                concluded = concluded or group_concluded
+                if aborted:
+                    for block in calls[index:]:
+                        settlement.skip(block)
+                    break
+            return settlement.result(concluded)
+        except Exception as error:
+            raise ToolBatchExecutionError(error, settlement.result()) from error
 
-        def is_parallel(call: Mapping[str, Any]) -> bool:
-            tool = self.tools.executable(call["name"], input_.get("agent"), input_.get("toolSet"))
-            classifier = None if tool is None else tool.get("isConcurrencySafe")
-            if not callable(classifier):
-                return False
+    async def _run_group(
+        self,
+        group: Sequence[Mapping[str, Any]],
+        mode: str,
+        limit: int,
+        settlement: _BatchSettlement,
+        input_: Mapping[str, Any],
+    ) -> tuple[int, bool, bool]:
+        """Run one exclusive call or one parallel pool; returns consumed, aborted, concluded."""
+        signal = input_["signal"]
+        slots: list[_Scheduled | None] = [None] * len(group)
+        call_seqs: list[int | None] = [None] * len(group)
+        in_flight: dict[int, asyncio.Task[None]] = {}
+        failures: list[BaseException] = []
+        started = committed = 0
+        aborted, concluded = _aborted(signal), False
+
+        def raise_failure() -> None:
+            if failures:
+                raise failures[0]
+
+        async def dispatch(index: int, scheduled: _Scheduled) -> None:
             try:
-                arguments = json.loads(call.get("arguments") or "{}")
-                return classifier(arguments) is True
-            except Exception:
-                return False
+                slots[index] = await self._dispatch(scheduled.call, input_)
+            except Exception as error:
+                failures.append(error)
 
-        async def run_group(
-            group: Sequence[Mapping[str, Any]],
-        ) -> list[tuple[Mapping[str, Any], int | None]]:
-            call_seqs: list[int | None] = []
-            for call in group:
-                log = input_.get("log")
-                agent = input_.get("agent")
-                if log is None:
-                    call_seqs.append(None)
+        async def commit_ready() -> None:
+            nonlocal committed, concluded
+            while committed < len(group):
+                slot = slots[committed]
+                if slot is None:
+                    return
+                result = await self._complete(slot, input_)
+                settlement.commit(group[committed], result, call_seqs[committed])
+                concluded = concluded or result.get("concludesTurn") is True
+                committed += 1
+
+        async def fill_pool() -> None:
+            nonlocal started, aborted
+            while not aborted and started < len(group) and len(in_flight) < limit:
+                if (
+                    started > 0
+                    and mode == "parallel"
+                    and self._execution_mode(group[started], input_) != "parallel"
+                ):
+                    return
+                index = started
+                call_seqs[index] = settlement.start(group[index])
+                started += 1
+                prepared = await self._prepare(group[index], input_)
+                if prepared.kind == "dispatch":
+                    in_flight[index] = asyncio.ensure_future(dispatch(index, prepared))
                 else:
-                    if agent is None:
-                        raise ValueError("logged tool batches require an agent")
-                    event = agent.session.append(
-                        "tool/call",
-                        {
-                            **log,
-                            "callId": call["id"],
-                            "name": call["name"],
-                            "arguments": call.get("arguments", ""),
-                        },
-                    )
-                    call_seqs.append(event["seq"])
-            semaphore = asyncio.Semaphore(limit)
+                    slots[index] = prepared
+                raise_failure()
+                await commit_ready()
+                aborted = aborted or _aborted(signal)
 
-            async def settled(call: Mapping[str, Any]) -> Mapping[str, Any]:
-                async with semaphore:
-                    return await self._one(call, input_)
+        try:
+            await fill_pool()
+            while in_flight:
+                done, _ = await asyncio.wait(
+                    in_flight.values(), return_when=asyncio.FIRST_COMPLETED
+                )
+                for index in [index for index, task in in_flight.items() if task in done]:
+                    del in_flight[index]
+                raise_failure()
+                await commit_ready()
+                aborted = aborted or _aborted(signal)
+                await fill_pool()
+        except asyncio.CancelledError:
+            for task in in_flight.values():
+                task.cancel()
+            await asyncio.gather(*in_flight.values(), return_exceptions=True)
+            raise
+        except Exception:
+            await asyncio.gather(*in_flight.values(), return_exceptions=True)
+            raise
+        if aborted:
+            for block in group[started:]:
+                settlement.skip(block)
+            return len(group), True, concluded
+        if committed != started:
+            raise RuntimeError("tool-call scheduler: uncommitted settled calls")
+        return started, False, concluded
 
-            outcomes = await asyncio.gather(*(settled(call) for call in group))
-            return list(zip(outcomes, call_seqs, strict=True))
 
-        index = 0
-        while index < len(calls):
-            if is_parallel(calls[index]):
-                end = index + 1
-                while end < len(calls) and is_parallel(calls[end]):
-                    end += 1
-                group = calls[index:end]
-            else:
-                end = index + 1
-                group = calls[index:end]
-            settled_group = await run_group(group)
-            for call, (settled, call_seq) in zip(group, settled_group, strict=True):
-                result = settled["result"]
-                log = input_.get("log")
-                agent = input_.get("agent")
-                if log is not None:
-                    assert agent is not None
-                    assert call_seq is not None
-                    agent.session.append(
-                        "tool/result",
-                        {
-                            **log,
-                            "message": create_tool_result_message(
-                                call_id=call["id"],
-                                content=result["content"],
-                                is_error=result["isError"],
-                            ),
-                            **(
-                                {"error": result["error"]["info"]}
-                                if result.get("error", {}).get("info")
-                                else {}
-                            ),
-                            **({"meta": result["meta"]} if "meta" in result else {}),
-                        },
-                        surface_op="append",
-                        source_event_seqs=[call_seq],
-                    )
-                results.append(settled)
-            if any(item["result"].get("concludesTurn") is True for item in results):
-                break
-            index = end
-        contexts = [
-            context
-            for settled in results
-            for context in settled["result"].get("additionalContexts", ())
-        ]
+class _BatchSettlement:
+    """Committed results and contexts, and their durable events for a logged batch."""
+
+    def __init__(self, input_: Mapping[str, Any]) -> None:
+        self._input = input_
+        self._results: list[Mapping[str, Any]] = []
+        self._contexts: list[Mapping[str, Any]] = []
+
+    def start(self, block: Mapping[str, Any]) -> int | None:
+        log = self._input.get("log")
+        if log is None:
+            return None
+        event = self._input["agent"].session.append(
+            "tool/call",
+            {
+                **log,
+                "callId": block["id"],
+                "name": block["name"],
+                "arguments": block.get("arguments", ""),
+            },
+        )
+        return cast(int, event["seq"])
+
+    def commit(
+        self, block: Mapping[str, Any], result: Mapping[str, Any], call_seq: int | None
+    ) -> None:
+        log = self._input.get("log")
+        if log is not None:
+            info = result.get("error", {}).get("info") if result["isError"] else None
+            self._input["agent"].session.append(
+                "tool/result",
+                {
+                    **log,
+                    "message": create_tool_result_message(
+                        call_id=block["id"],
+                        content=result["content"],
+                        is_error=result["isError"],
+                    ),
+                    **({"error": info} if info else {}),
+                    **({"meta": result["meta"]} if "meta" in result else {}),
+                },
+                surface_op="append",
+                source_event_seqs=[call_seq],
+            )
+        self._results.append({"callId": block["id"], "result": result})
+        self._contexts.extend(result.get("additionalContexts", ()))
+
+    def skip(self, block: Mapping[str, Any]) -> None:
+        """Record a synthetic result for a call the abort kept from starting."""
+        self.commit(block, deep_freeze(_aborted_before_dispatch_result()), self.start(block))
+
+    def result(self, concluded: bool | None = None) -> dict[str, Any]:
+        if concluded is None:
+            concluded = any(item["result"].get("concludesTurn") is True for item in self._results)
         return {
-            "results": results,
-            "additionalContexts": contexts,
-            "concluded": any(item["result"].get("concludesTurn") is True for item in results),
+            "results": list(self._results),
+            "additionalContexts": list(self._contexts),
+            "concluded": concluded,
         }
 
 

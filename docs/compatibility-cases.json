@@ -28,6 +28,10 @@
       "sha256": "57e44f5dff14c02e053a25332ff9dc052479c68b35bae504f7dbe28b75e490d2"
     },
     {
+      "path": "packages/core/agent-loop/tests/tool-calls.spec.ts",
+      "sha256": "080d4472d54c88684e705a676963564ba00997bbb92fe4daee1a83eece517f5e"
+    },
+    {
       "path": "packages/core/agent-loop/tests/tool-updates.spec.ts",
       "sha256": "bb9a31bd5606633d78a48fb9f7ebc61e3be6299d9d72b73f65638cc571a0ee05"
     },
@@ -387,6 +391,42 @@
       "notes": ""
     },
     {
+      "id": "core/agent-loop::agent-cancel-cancel-from-an-assistant-message-observer-skips-execution-but-balances-replay",
+      "source": "packages/core/agent-loop/tests/cancel.spec.ts::Agent.cancel() > cancel from an assistant/message observer skips execution but balances replay",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_cancellation.py::test_cancel_after_the_assistant_message_skips_tools_but_balances_replay"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::agent-cancel-cancel-keepinbox-true-latches-a-waking-send-landing-in-the-abort-to-idle-window",
+      "source": "packages/core/agent-loop/tests/cancel.spec.ts::Agent.cancel() > cancel({ keepInbox: true }) latches a waking send landing in the abort-to-idle window",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_cancellation.py::test_waking_send_after_abort_is_latched_and_replayed"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::agent-cancel-cancel-keepinbox-true-parks-queued-work-after-an-active-turn-aborts",
+      "source": "packages/core/agent-loop/tests/cancel.spec.ts::Agent.cancel() > cancel({ keepInbox: true }) parks queued work after an active turn aborts",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_cancellation.py::test_keep_inbox_cancel_parks_queued_work_until_the_next_wake"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::agent-cancel-retains-terminal-replay-state-when-cancellation-races-the-final-stream-chunk",
+      "source": "packages/core/agent-loop/tests/cancel.spec.ts::Agent.cancel() > retains terminal replay state when cancellation races the final stream chunk",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_cancellation.py::test_listener_cancel_on_the_final_chunk_keeps_replay_state"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/agent-loop::cancel-mid-stream-finalizes-the-streamed-prefix-onto-the-surface",
       "source": "packages/core/agent-loop/tests/cancel.spec.ts::cancel mid-stream finalizes the streamed prefix onto the surface",
       "classification": "ported",
@@ -401,6 +441,15 @@
       "classification": "ported",
       "python_tests": [
         "tests/core/test_phase5_runtime.py::test_throwing_turn_stopping_listener_ends_the_turn_with_an_error"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::agent-loop-a-tool-can-conclude-the-turn-despite-owing-a-follow-up-request",
+      "source": "packages/core/agent-loop/tests/loop.spec.ts::agent loop > a tool can conclude the turn despite owing a follow-up request",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_cancellation.py::test_a_tool_can_conclude_the_turn"
       ],
       "notes": ""
     },
@@ -446,6 +495,69 @@
       "classification": "ported",
       "python_tests": [
         "tests/core/test_phase5_runtime.py::test_seed_append_failure_closes_the_write_handle"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::tool-call-scheduler-abort-handling-does-not-run-an-exclusive-barrier-after-a-parallel-group-aborts",
+      "source": "packages/core/agent-loop/tests/tool-calls.spec.ts::tool-call scheduler: abort handling > does not run an exclusive barrier after a parallel group aborts",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_scheduler.py::test_abort_skips_the_exclusive_barrier_after_a_parallel_group"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::tool-call-scheduler-abort-handling-skips-dispatch-and-stops-starting-siblings-when-abort-fires-during-ordered-pre-execute",
+      "source": "packages/core/agent-loop/tests/tool-calls.spec.ts::tool-call scheduler: abort handling > skips dispatch and stops starting siblings when abort fires during ordered pre-execute",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_scheduler.py::test_abort_during_pre_execute_skips_dispatch_and_siblings"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::tool-call-scheduler-abort-handling-starts-no-calls-when-the-signal-is-already-aborted-before-a-parallel-group",
+      "source": "packages/core/agent-loop/tests/tool-calls.spec.ts::tool-call scheduler: abort handling > starts no calls when the signal is already aborted before a parallel group",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_scheduler.py::test_abort_before_a_parallel_group_starts_no_calls"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::tool-call-scheduler-abort-handling-stops-replenishing-after-abort-commits-started-results-and-parks-accepted-additional-contexts",
+      "source": "packages/core/agent-loop/tests/tool-calls.spec.ts::tool-call scheduler: abort handling > stops replenishing after abort, commits started results, and parks accepted additional contexts",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_scheduler.py::test_abort_stops_the_pool_and_parks_committed_contexts"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::tool-call-scheduler-failure-quiescence-pairs-outstanding-requests-after-s-fails-and-preserves-committed-results",
+      "source": "packages/core/agent-loop/tests/tool-calls.spec.ts::tool-call scheduler: failure quiescence > pairs outstanding requests after %s fails and preserves committed results",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_scheduler.py::test_scheduler_failure_pairs_outstanding_requests"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::tool-call-scheduler-model-order-results-despite-out-of-order-settlement-commits-tool-result-in-model-order-even-when-a-later-call-settles-first",
+      "source": "packages/core/agent-loop/tests/tool-calls.spec.ts::tool-call scheduler: model-order results despite out-of-order settlement > commits tool/result in model order even when a later call settles first",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_scheduler.py::test_results_commit_in_model_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/agent-loop::tool-call-scheduler-rolling-pool-honors-maxparalleltoolcalls-starts-at-most-the-cap-replenishing-as-calls-settle",
+      "source": "packages/core/agent-loop/tests/tool-calls.spec.ts::tool-call scheduler: rolling pool honors maxParallelToolCalls > starts at most the cap, replenishing as calls settle",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_scheduler.py::test_rolling_pool_starts_at_most_the_cap"
       ],
       "notes": ""
     },
@@ -3543,6 +3655,15 @@
       "notes": ""
     },
     {
+      "id": "core/tools::settles-every-unowned-call-when-cancellation-precedes-the-batch",
+      "source": "packages/core/tools/tests/tools.spec.ts::settles every unowned call when cancellation precedes the batch",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_cancellation_before_the_batch_settles_every_call"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::toolruntime-a-thrown-tool-is-normalized-to-an-iserror-result-before-a-tools-execute-listener-sees-next",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > a thrown tool is normalized to an isError result BEFORE a tools/execute listener sees next()",
       "classification": "ported",
@@ -3579,6 +3700,42 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-contains-a-non-json-post-execute-failure-projection-as-a-safe-final-error",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > contains a non-JSON post-execute failure projection as a safe final error",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_non_json_block_feedback_is_a_safe_error"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-derives-a-stable-failure-message-from-non-text-or-empty-block-feedback",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > derives a stable failure message from non-text or empty block feedback",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_block_message_from_non_text_or_empty_feedback"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-fuses-caller-cancellation-back-into-a-wrapper-replacement-for-the-running-body",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > fuses caller cancellation back into a wrapper replacement for the running body",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_caller_cancellation_reaches_a_body_under_a_replaced_signal"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-keeps-the-normalized-content-when-the-final-content-transform-returns-undefined",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > keeps the normalized content when the final content transform returns undefined",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_final_content_transform_may_keep_the_content"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::toolruntime-keeps-value-meta-through-content-replacement-and-recomputes-both-projections-after-value-replacement",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > keeps value/meta through content replacement and recomputes both projections after value replacement",
       "classification": "ported",
@@ -3588,11 +3745,101 @@
       "notes": ""
     },
     {
+      "id": "core/tools::toolruntime-normalizes-a-throwing-content-projector-without-running-post-execute",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > normalizes a throwing content projector without running post-execute",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_throwing_content_projector_skips_post_execute"
+      ],
+      "notes": ""
+    },
+    {
       "id": "core/tools::toolruntime-preserves-tool-deferred-execute-wrapper-and-post-execute-contexts-in-order",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > preserves tool-deferred, execute-wrapper, and post-execute contexts in order",
       "classification": "ported",
       "python_tests": [
         "tests/core/test_phase5_runtime.py::test_tool_contexts_survive_each_pipeline_layer_in_order"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-replaces-a-late-post-execute-success-with-aborted-and-preserves-contexts",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > replaces a late post-execute success with ABORTED and preserves contexts",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_late_post_execute_success_becomes_aborted_with_contexts"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-replaces-a-late-wrapper-success-with-aborted-and-preserves-deferred-contexts",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > replaces a late wrapper success with ABORTED and preserves deferred contexts",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_late_wrapper_success_becomes_aborted_with_deferred_contexts"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-restores-the-required-caller-signal-after-around-dispatch",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > restores the required caller signal after around dispatch",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_post_execute_sees_the_caller_signal_again"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-runs-the-captured-content-projector-before-policy-and-keeps-later-replacement-authoritative",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > runs the captured content projector before policy and keeps later replacement authoritative",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_captured_content_projector_runs_before_policy"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-runs-the-snapshotted-final-content-transform-after-outer-pipeline-normalization",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > runs the snapshotted final content transform after outer pipeline normalization",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_final_content_transform_runs_on_pipeline_failures"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-skips-dispatch-when-an-around-wrapper-supplies-an-already-aborted-signal",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > skips dispatch when an around wrapper supplies an already-aborted signal",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_wrapper_supplied_aborted_signal_skips_dispatch"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-turns-a-post-execute-block-into-a-valueless-failure",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > turns a post-execute block into a valueless failure",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_post_execute_block_is_a_valueless_failure"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-uses-aborted-before-dispatch-when-cancellation-overtakes-a-wrapper-short-circuit",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > uses ABORTED_BEFORE_DISPATCH when cancellation overtakes a wrapper short-circuit",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_cancelled_wrapper_short_circuit_is_aborted_before_dispatch"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "core/tools::toolruntime-waits-for-an-uncooperative-started-body-before-returning-aborted",
+      "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > waits for an uncooperative started body before returning ABORTED",
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_tool_pipeline.py::test_cancellation_drains_an_uncooperative_body"
       ],
       "notes": ""
     },
@@ -3638,6 +3885,24 @@
       "classification": "ported",
       "python_tests": [
         "tests/llm/retry/test_retry.py::test_non_retryable_failure_delegates"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "llm/llm-retry::provider-routed-retry-policy-lets-an-earlier-recovery-listener-cancel-before-s-retry-policy-runs",
+      "source": "packages/llm/llm-retry/tests/retry.spec.ts::provider-routed retry policy > lets an earlier recovery listener cancel before %s retry policy runs",
+      "classification": "ported",
+      "python_tests": [
+        "tests/llm/retry/test_retry.py::test_an_aborted_request_schedules_no_retry"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "llm/llm-retry::provider-routed-retry-policy-lets-turn-cancellation-win-during-backoff-without-opening-another-step",
+      "source": "packages/llm/llm-retry/tests/retry.spec.ts::provider-routed retry policy > lets turn cancellation win during backoff without opening another step",
+      "classification": "ported",
+      "python_tests": [
+        "tests/llm/retry/test_retry.py::test_turn_cancellation_ends_the_backoff_without_a_retry"
       ],
       "notes": ""
     },

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from collections.abc import Awaitable, Callable
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from deepseek_cordis import Context
 from deskagents.core.session import SessionStore
 from deskagents.llm.retry import RetryInternals, apply, local_delay, retry_policy_key
 from deskagents.session.projection import SessionProjectionRegistry
+from deskagents.util.abort import AbortController
 
 RETRY_SPEC = "packages/llm/llm-retry/tests/retry.spec.ts"
 
@@ -223,6 +225,72 @@ async def test_excessive_provider_delay_delegates() -> None:
         )
         assert result is None
         assert delegated == 1
+        assert session.seq == 0
+    finally:
+        await ctx.fiber.dispose()
+
+
+def aborted_payload(session: Any, signal: object) -> dict[str, Any]:
+    return {
+        "agent": SimpleNamespace(session=session),
+        "turn": 1,
+        "step": 1,
+        "provider": "test",
+        "failure": {"message": "busy", "code": "RATE_LIMIT"},
+        "retryPolicy": normal_policy(),
+        "signal": signal,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.upstream(
+    f"{RETRY_SPEC}::provider-routed retry policy > "
+    "lets turn cancellation win during backoff without opening another step"
+)
+async def test_turn_cancellation_ends_the_backoff_without_a_retry() -> None:
+    ctx, store = await setup()
+    sleeping = asyncio.Event()
+
+    async def sleep(seconds: float) -> None:
+        sleeping.set()
+        await asyncio.Event().wait()
+
+    async def downstream() -> None:
+        return None
+
+    try:
+        await apply(ctx, internals=RetryInternals(random=lambda: 0.5, sleep=sleep))
+        session = store.create()
+        controller = AbortController()
+        pending = asyncio.ensure_future(
+            recover(ctx, aborted_payload(session, controller.signal), downstream)
+        )
+        await sleeping.wait()
+        controller.abort({"kind": "user"})
+        assert await asyncio.wait_for(pending, 1) is None
+        assert [event["type"] for event in session.snapshot_events()] == ["llm/retry"]
+    finally:
+        await ctx.fiber.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.upstream(
+    f"{RETRY_SPEC}::provider-routed retry policy > "
+    "lets an earlier recovery listener cancel before %s retry policy runs"
+)
+async def test_an_aborted_request_schedules_no_retry() -> None:
+    ctx, store = await setup()
+
+    async def downstream() -> None:
+        return None
+
+    try:
+        await apply(ctx, internals=RetryInternals(random=lambda: 0.5))
+        session = store.create()
+        controller = AbortController()
+        controller.abort({"kind": "user"})
+        result = await recover(ctx, aborted_payload(session, controller.signal), downstream)
+        assert result is None
         assert session.seq == 0
     finally:
         await ctx.fiber.dispose()

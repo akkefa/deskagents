@@ -1,14 +1,15 @@
 """Default event-sourced Agent driver.
 
-Upstream: packages/core/agent-loop at ce7073d. Asyncio task cancellation is the
-Python control boundary replacing Node AbortController listener plumbing.
+Upstream: packages/core/agent-loop at ce7073d. Cancellation is cooperative, as
+upstream: ``cancel()`` aborts the running phase's ``AbortController`` and the loop,
+tools and model streams observe its signal; the driving task is never cancelled.
 """
 
 from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import AsyncIterable, Callable, Mapping, Sequence
 from typing import Any, cast
 
 from deepseek_cordis import Context, Service
@@ -26,6 +27,7 @@ from deskagents.core.session import (
     RestoredSessionOptions,
     Session,
     SessionStore,
+    ToolCallRecovery,
     canonical_header,
     header_equals,
     interrupted_turn_closers,
@@ -47,6 +49,7 @@ from deskagents.llm import (
     create_system_message,
 )
 from deskagents.session.persistence import SessionHandle, SessionPersistence
+from deskagents.util.abort import AbortController, AbortSignal, abortable
 
 DEFAULT_MAX_PARALLEL_TOOL_CALLS = 10
 
@@ -161,14 +164,6 @@ class ReactLoopInbox:
         self.splice("next-turn", 0, len(self.next_turn), [])
 
 
-class _Signal:
-    aborted = False
-    reason: object = None
-
-    def abort(self, reason: object) -> None:
-        self.aborted, self.reason = True, reason
-
-
 class _LiveAttempt:
     """One model attempt's ``agent/assistant-stream`` frames.
 
@@ -224,6 +219,25 @@ class _LiveAttempt:
         self._emit({"type": "end", "index": self._index, "outcome": {"kind": "abandoned"}})
 
 
+async def _close_stream(stream: object) -> None:
+    aclose = getattr(stream, "aclose", None)
+    if callable(aclose):
+        await aclose()
+
+
+async def _consume_stream(
+    stream: AsyncIterable[Mapping[str, Any]], live: _LiveAttempt, signal: AbortSignal
+) -> None:
+    """Publish each chunk until the stream ends; the adapter stream is always closed."""
+    iterator = aiter(stream)
+    try:
+        async for chunk in iterator:
+            signal.throw_if_aborted()
+            live.push(chunk)
+    finally:
+        await _close_stream(iterator)
+
+
 class ReactLoopAgent:
     def __init__(
         self,
@@ -239,7 +253,8 @@ class ReactLoopAgent:
         self.model = AgentModel(session, options)
         self.inbox = ReactLoopInbox(session, self.dispatch)
         self._task: asyncio.Task[None] | None = None
-        self._signal: _Signal | None = None
+        self._abort: AbortController | None = None
+        self._wake_requested = False
         self._disposed = False
         self._last_turn = turn_boundary_of(session)["lastTurn"]
         self._attempt_counter = 0
@@ -261,9 +276,25 @@ class ReactLoopAgent:
         self.send(message, "next-step", False)
 
     def send(self, message: Mapping[str, Any], target: str, wakeup: bool) -> None:
-        self.inbox.append(target, message)
-        if wakeup and self.status == "idle" and not self._disposed:
-            self._task = asyncio.create_task(self._drive())
+        # Waking input cannot join an aborted activity, so it starts the next turn.
+        after_abort = wakeup and self._abort is not None and self._abort.signal.aborted
+        self.inbox.append("next-turn" if after_abort else target, message)
+        if wakeup:
+            self._wake(after_abort)
+
+    def _wake(self, after_abort: bool = False) -> None:
+        """Start a driver, or latch the wake behind an aborted one for replay when it ends."""
+        if self.status == "running":
+            reason = None if self._abort is None else self._abort.signal.reason
+            disposed = isinstance(reason, Mapping) and reason.get("kind") == "disposed"
+            if after_abort and not disposed:
+                self._wake_requested = True
+            return
+        if self._disposed:
+            return
+        self._abort = AbortController()
+        self._wake_requested = False
+        self._task = asyncio.create_task(self._drive())
 
     def cancel(
         self,
@@ -271,12 +302,12 @@ class ReactLoopAgent:
         *,
         keep_inbox: bool = False,
     ) -> None:
+        """Abort the running phase's signal. Started tools finish; the driver then stops."""
         if not keep_inbox:
             self.inbox.clear()
-        if self._signal is not None:
-            self._signal.abort(reason or {"kind": "user"})
-        if self._task is not None and not self._task.done():
-            self._task.cancel()
+            self._wake_requested = False
+        if self._abort is not None and self.status == "running":
+            self._abort.abort(reason or {"kind": "user"})
 
     async def when_idle(self) -> None:
         while self._task is not None:
@@ -300,29 +331,37 @@ class ReactLoopAgent:
     async def _drive_active(self) -> None:
         self.dispatch.emit("agent/status", {"status": "running"})
         try:
-            while self.inbox.has_pending and not self._disposed:
-                await self._turn()
+            while not self._disposed and await self._turn():
+                pass
         finally:
+            wake = self._wake_requested and self.inbox.has_pending and not self._disposed
             self._task = None
-            self._signal = None
+            self._abort = None
+            self._wake_requested = False
             self.dispatch.emit("agent/status", {"status": "idle"})
+            if wake:
+                self._wake()
 
-    async def _turn(self) -> None:
+    async def _turn(self) -> bool:
+        """Run one turn; returns whether the driver continues with another one."""
+        assert self._abort is not None
+        signal = self._abort.signal
+        if signal.aborted:
+            return False
         turn = self._last_turn + 1
         self._last_turn = turn
-        self._signal = _Signal()
-        signal = self._signal
         self.session.append("turn/start", {"turn": turn})
         reason: Mapping[str, Any] = {"kind": "completed"}
         target = "next-turn"
         step = 0
+        stop = False
         try:
             while True:
-                if signal.aborted:
-                    raise asyncio.CancelledError
+                signal.throw_if_aborted()
                 proposed = self.inbox.claim(target, turn)
                 selection = self.model.current()
                 if not proposed and step == 0:
+                    stop = True
                     break
                 if selection is None:
                     raise RuntimeError(f'agent "{self.id}" has no model selection')
@@ -360,14 +399,17 @@ class ReactLoopAgent:
                     if asyncio.iscoroutine(decision):
                         decision = await decision
                     decision = cast(Mapping[str, Any], decision)
+                    signal.throw_if_aborted()
                     if decision["kind"] == "reject":
                         reason = {"kind": "blocked"}
+                        stop = True
                         break
                     proposed = decision["messages"]
                     if not proposed and step == 0:
+                        stop = True
                         break
                     step += 1
-                    self.session.append("step/start", {"turn": turn, "step": step})
+                    step_start = self.session.append("step/start", {"turn": turn, "step": step})
                     try:
                         result = await self._step(
                             turn,
@@ -378,10 +420,15 @@ class ReactLoopAgent:
                             signal,
                             decision.get("startsRequestSeries") is True,
                         )
+                    except BaseException:
+                        # Every tool request the failed step left unanswered gets a result.
+                        self._record_pending_tool_results(step_start["seq"])
+                        raise
                     finally:
                         self.session.append("step/end", {"turn": turn, "step": step})
                 finally:
                     tool_set.dispose()
+                signal.throw_if_aborted()
                 if result in ("completed", "max-tokens"):
                     if reason["kind"] != "max-tokens":
                         reason = {"kind": result}
@@ -390,25 +437,48 @@ class ReactLoopAgent:
                         await self.dispatch.serial(
                             "agent/turn-stopping", {"turn": turn, "signal": signal}
                         )
-                        if signal.aborted:
-                            raise asyncio.CancelledError
+                        signal.throw_if_aborted()
                     if not self.inbox.next_step:
                         break
                 target = "next-step"
         except asyncio.CancelledError:
-            cause = signal.reason if isinstance(signal.reason, Mapping) else {"kind": "user"}
-            reason = {"kind": "aborted", "reason": cause}
+            reason = {"kind": "aborted", "reason": self._cancel_cause(signal)}
+            raise
         except Exception as error:
-            reason = {
-                "kind": "error",
-                "error": {
-                    "message": str(error),
-                    "code": getattr(error, "code", "UNKNOWN"),
-                },
-            }
-            self.dispatch.emit("agent/error", {"turn": turn, "step": step, "error": error})
+            stop = True
+            if signal.aborted:
+                reason = {"kind": "aborted", "reason": self._cancel_cause(signal)}
+            else:
+                reason = {
+                    "kind": "error",
+                    "error": {
+                        "message": str(error),
+                        "code": getattr(error, "code", "UNKNOWN"),
+                    },
+                }
+                self.dispatch.emit("agent/error", {"turn": turn, "step": step, "error": error})
         finally:
             self.session.append("turn/end", {"turn": turn, "reason": reason})
+        if stop or not self.inbox.has_pending:
+            return False
+        self._abort = AbortController()
+        return True
+
+    @staticmethod
+    def _cancel_cause(signal: AbortSignal) -> Mapping[str, Any]:
+        return signal.reason if isinstance(signal.reason, Mapping) else {"kind": "user"}
+
+    def _record_pending_tool_results(self, step_start_seq: int) -> None:
+        recovery = ToolCallRecovery()
+        for event in self.session.snapshot_events()[step_start_seq:]:
+            recovery.observe(event)
+        for event in recovery.results():
+            self.session.append(
+                "tool/result",
+                event["data"],
+                surface_op="append",
+                source_event_seqs=event.get("sourceEventSeqs"),
+            )
 
     def _log_request_header(
         self, header: Mapping[str, Any], turn: int, step: int, starts_series: bool
@@ -475,7 +545,7 @@ class ReactLoopAgent:
         messages: Sequence[Mapping[str, Any]],
         selection: Mapping[str, Any],
         tool_set: ResolvedToolSet,
-        signal: _Signal,
+        signal: AbortSignal,
         starts_series: bool,
     ) -> str | None:
         prompt = self.loop_ctx.get("systemPrompt")
@@ -582,9 +652,10 @@ class ReactLoopAgent:
         if asyncio.iscoroutine(proposed):
             proposed = await proposed
         proposed = cast(Mapping[str, Any], proposed)
+        signal.throw_if_aborted()
         prepared = None
         try:
-            prepared = await llm.prepare_call(proposed, signal)
+            prepared = await abortable(llm.prepare_call(proposed, signal), signal)
             config = dict(prepared.config)
         except LlmError as error:
             if error.code != "NO_ADAPTER":
@@ -633,15 +704,12 @@ class ReactLoopAgent:
         try:
             stream = prepared.stream(request) if prepared else llm.stream(request)
             if signal.aborted:
-                raise asyncio.CancelledError
+                await _close_stream(stream)
+                signal.throw_if_aborted()
             live.start()
             started = True
-            async for chunk in stream:
-                if signal.aborted:
-                    raise asyncio.CancelledError
-                live.push(chunk)
-            if signal.aborted:
-                raise asyncio.CancelledError
+            await abortable(_consume_stream(stream, live, signal), signal)
+            signal.throw_if_aborted()
             assembler = live.assembler
             finish = assembler.finish
             stream_record = list(live.accumulator.snapshot())
@@ -747,6 +815,7 @@ class ReactLoopAgent:
             )
             if asyncio.iscoroutine(action):
                 action = await action
+            signal.throw_if_aborted()
             if isinstance(action, Mapping) and action.get("kind") == "retry":
                 return await self._step(turn, step, [], selection, tool_set, signal, False)
             raise LlmError(finish["failure"]["message"], finish["failure"]["code"])
@@ -769,7 +838,8 @@ class ReactLoopAgent:
                 }
             )
         except ToolBatchExecutionError as error:
-            result = error.partial
+            for context in error.partial["additionalContexts"]:
+                self.inbox.append("next-step", context)
             if isinstance(error.cause, BaseException):
                 raise error.cause from error
             raise RuntimeError(str(error.cause)) from error

@@ -87,8 +87,8 @@ installed distributions is rejected.
 2. Keep its public service name, event names, tool names, schemas and durable record
    vocabulary unchanged.
 3. Translate a `Service` subclass or `apply(ctx, config)` module and its `inject`
-   declaration. Use `async`/`await` and the supplied signal instead of JavaScript
-   promises and `AbortSignal`.
+   declaration. Use `async`/`await` for promises, and `deskagents.util.abort` where
+   upstream uses `AbortController` and `AbortSignal` (see Cancellation below).
 4. Register every listener, tool, projection, prompt section and adapter through the
    plugin's `ctx`; pass `ctx=ctx` to registry methods. Do not return an awaited
    registration as though it were a JavaScript disposer.
@@ -147,7 +147,7 @@ events are logged and contained; failures of waterfall and serial listeners prop
 | Event | Mode | Use |
 |---|---|---|
 | `tools/pre-execute` | waterfall | allow, deny, ask or cancel a call before dispatch |
-| `tools/execute` | waterfall | wrap dispatch; `next_()` returns the normalized result |
+| `tools/execute` | waterfall | wrap dispatch; `next_()` returns the normalized result; may replace `execution.signal` for the body |
 | `tools/post-execute` | waterfall | inspect each result, errors included |
 | `tools/result` | notification | observe the final frozen result |
 | `agent/created` | serial | set up per-agent state |
@@ -167,6 +167,36 @@ an agent to route through, or when the channel is unavailable, the call degrades
 denial. The approval service implementation remains in the external control family.
 `tools/post-execute` may replace successful `value` (which is validated and rendered
 again), replace `content`, block a result, and attach `additionalContexts`.
+
+A tool definition may also declare upstream's `projectContent(execution, result)`,
+which prepares content before post-execute policy, and `finalizeContent(execution,
+result)`, which runs once on every final result. `timeoutMs` is only a declaration; a
+`tools/execute` wrapper enforces it, as upstream's timeout policy plugin does.
+
+## Cancellation
+
+Cancellation is cooperative, as upstream. `agent.cancel(reason)` aborts the running
+turn's signal; it never cancels a task. The loop stops starting work, an open model
+stream is closed, and a started tool body runs until it returns. A success that
+finishes after the abort becomes a `tool call aborted` result, and calls that never
+started get `tool call aborted before dispatch`, so every tool call is answered. A
+listener or tool may cancel its own agent.
+
+Tool executions, model requests and agent events carry the signal as `signal`. Plugin
+code observes it through `deskagents.util.abort`:
+
+| Upstream | Python |
+|---|---|
+| `new AbortController()`, `controller.abort(reason)` | `AbortController()`, `controller.abort(reason)` |
+| `signal.aborted`, `signal.reason`, `signal.throwIfAborted()` | `signal.aborted`, `signal.reason`, `signal.throw_if_aborted()` |
+| `signal.addEventListener('abort', fn)` | `remove = signal.add_listener(fn)` |
+| awaiting the abort event | `await signal.wait()` |
+| `AbortSignal.any([...])`, `AbortSignal.timeout(ms)` | `AbortSignal.any([...])`, `AbortSignal.timeout(ms)` |
+
+`abortable(awaitable, signal)` awaits work unless the signal aborts first, then cancels
+that work and raises `AbortError`. A `tools/execute` wrapper that installs its own
+deadline sets `execution.signal`, awaits `next_()`, and restores the original signal
+in `finally`; the body then sees the caller's and the wrapper's signals fused.
 
 ## Skills and web search
 

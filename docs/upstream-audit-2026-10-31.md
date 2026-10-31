@@ -75,7 +75,30 @@ upstream-marked tests:
 The three packages are now `in-progress` in `upstream.json`, with notes naming what
 remains: cataloguing and porting the rest of their large upstream suites. Their public
 headless plugin seams are covered by focused upstream cases and a plugin-fiber lifecycle
-test. The compatibility catalog now contains 808 cases from 93 upstream spec files.
+test.
+
+## Second review
+
+A second review probed the port against the pin and found cancellation and the tool
+pipeline still diverged, in two cases corrupting sessions: cancelling during a tool
+left its call unanswered, and a tool concluding the turn dropped its sibling calls; the
+next request then carried an unanswered tool call. The Python loop cancelled the task
+itself, abandoning tool bodies and raising into `when_idle()` callers when an agent
+cancelled itself.
+
+The fixes follow upstream: cancellation goes only through the phase signal
+(`deskagents.util.abort`), started bodies drain, late successes become `ABORTED`,
+unstarted calls get `ABORTED_BEFORE_DISPATCH` results, and a failed step records results
+for its unanswered calls. The pipeline gained wrapper signal replacement, deferred
+contexts after wrappers, `projectContent` and `finalizeContent`, and safe
+materialization. Upstream cases from `tool-calls.spec.ts`, `tools.spec.ts`,
+`cancel.spec.ts` and `retry.spec.ts` cover each change. The compatibility catalog now
+contains 837 cases from 94 upstream spec files.
+
+Still open from that review: the plugin contract only runs a family's own probes, so it
+does not detect a leak by itself; most agent-loop, tools and DeepSeek adapter cases are
+not yet ported; and the host protocol (`typert`, `api/*`) that upstream UIs use has no
+Python plan.
 
 ## Tracking
 

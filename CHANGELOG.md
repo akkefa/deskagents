@@ -106,12 +106,29 @@
     publish catalog updates.
   - `core/agent-loop`, `core/agent` and `core/tools` are now marked `in-progress`,
     until the remaining large upstream suites are catalogued.
+- Cancellation and tool execution follow upstream:
+  - `agent.cancel()` aborts the running phase's signal instead of cancelling the task.
+    Started tool bodies finish, a late success becomes `tool call aborted`, and calls
+    that never started get `tool call aborted before dispatch`. A listener or tool can
+    cancel its own agent without `when_idle()` raising, and after an aborted, failed
+    or blocked turn the driver waits for the next wake.
+  - A failed step records results for every tool call it left unanswered, so the
+    next request never carries an unanswered call.
+  - A tool that concludes the turn no longer drops the other calls of the same reply;
+    the batch scheduler commits results in model order and records skipped calls.
+  - `tools/execute` wrappers can replace `execution.signal`; contexts deferred by the
+    tool survive a wrapper's replacement result; `projectContent` and
+    `finalizeContent` run; a result that is not lossless JSON becomes an error result;
+    aborted results carry upstream's `AbortError` name.
+  - `deskagents.util.abort` provides `AbortController`, `AbortSignal` and `abortable`
+    for plugins. Model streams, request preparation and retry backoff end promptly
+    on abort, and the adapter stream is always closed.
 - Plugin packages: `BundleLoader` resolves bundle row names through the
   `deskagents.plugins` entry-point group, so a plugin distribution from another
   repository is mounted by name. [docs/extending.md](docs/extending.md) and
   `examples/external_plugin` show a complete plugin family. The pytest-independent
-  `deskagents.testing` plugin contract verifies mount, public-seam execution and clean
-  family unload; lifecycle tests cover tools, guards, prompts, adapters, events and
+  `deskagents.testing` plugin contract runs a family's own mount, execution and unload
+  probes; lifecycle tests cover tools, guards, prompts, adapters, events and
   projections owned by a real plugin fiber.
 - Upstream watch: `docs/upstream.json` records the vendored Cordis versions and the
   unmapped upstream packages the core imports. `scripts/upstream_changes.py` reports

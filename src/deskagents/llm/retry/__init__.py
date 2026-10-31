@@ -4,8 +4,8 @@ Upstream: packages/llm/llm-retry (``@deepseek-ai/dsh-llm-retry``) at ce7073d.
 
 The listener is installed before the Phase 5 agent package exists.  Its event payload is
 therefore structural: ``agent`` must expose ``session``, while the remaining fields follow
-upstream's ``agent/request-error`` payload.  Python task cancellation replaces AbortSignal;
-plugin disposal cancels and drains active retry waits.
+upstream's ``agent/request-error`` payload.  A backoff ends early, without retrying, when
+the payload's ``signal`` aborts or the plugin is disposed; disposal drains active waits.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from deskagents.session.projection import (
     ProjectionHandle,
     SessionProjectionRegistry,
 )
+from deskagents.util.abort import is_aborted
 
 __all__ = [
     "LlmRetryEventData",
@@ -161,28 +162,33 @@ async def _delay_or_dispose(
     delay_ms: float,
     disposed: asyncio.Event,
     sleep: Sleep,
+    signal: object = None,
 ) -> bool:
-    if disposed.is_set():
+    """Whether the full delay elapsed before disposal or the request's abort."""
+    if disposed.is_set() or is_aborted(signal):
         return False
 
     async def wait_disposed() -> None:
         await disposed.wait()
 
     sleep_task: asyncio.Future[None] = asyncio.ensure_future(sleep(delay_ms / 1000))
-    disposed_task = asyncio.create_task(wait_disposed())
+    stops: list[asyncio.Future[Any]] = [asyncio.create_task(wait_disposed())]
+    wait_aborted = getattr(signal, "wait", None)
+    if callable(wait_aborted):
+        stops.append(asyncio.ensure_future(wait_aborted()))
     try:
         done, _pending = await asyncio.wait(
-            {sleep_task, disposed_task}, return_when=asyncio.FIRST_COMPLETED
+            {sleep_task, *stops}, return_when=asyncio.FIRST_COMPLETED
         )
-        if disposed_task in done:
+        if any(stop in done for stop in stops):
             return False
         await sleep_task
         return True
     finally:
-        for task in (sleep_task, disposed_task):
+        for task in (sleep_task, *stops):
             if not task.done():
                 task.cancel()
-        await asyncio.gather(sleep_task, disposed_task, return_exceptions=True)
+        await asyncio.gather(sleep_task, *stops, return_exceptions=True)
 
 
 async def _settle_downstream(
@@ -238,14 +244,15 @@ async def apply(
         if not isinstance(policy_value, Mapping):
             return await next_()
         policy = cast(Mapping[str, Any], policy_value)
-        if disposed.is_set():
+        signal = payload.get("signal")
+        if disposed.is_set() or is_aborted(signal):
             return None
 
         failure = cast(Mapping[str, Any], payload["failure"])
         mode = policy.get("mode")
         if mode == "always":
             downstream, downstream_error = await _settle_downstream(next_)
-            if disposed.is_set():
+            if disposed.is_set() or is_aborted(signal):
                 return None
             if downstream_error is None and downstream is not None:
                 if downstream.get("kind") == "retry":
@@ -293,7 +300,7 @@ async def apply(
         if mode == "normal":
             event_data["maxRetries"] = policy["maxRetries"]
         agent.session.append("llm/retry", event_data)
-        if not await _delay_or_dispose(delay_ms, disposed, hooks.sleep):
+        if not await _delay_or_dispose(delay_ms, disposed, hooks.sleep, signal):
             return None
         agent.session.append(
             "llm/retry-started",
