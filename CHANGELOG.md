@@ -1,13 +1,36 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a1 — prepared, not published
+
+- Fixed DeepSeek tool-change and system-update serialization, native replay
+  validation, empty text handling, model listing and reasoning capabilities.
+- Validated SSE framing, response state and tool JSON; retained cache-token usage.
+  Malformed streams formerly accepted now fail explicitly. Cross-model signatures
+  are dropped; cache-inclusive totals may increase compared with earlier builds.
+- Aligned DeepSeek provider errors and Retry-After metadata with upstream retry
+  categories; HTTP authentication/rate errors now use AUTH/RATE_LIMIT.
+- Added public single-call/composite tool execution through the shared pipeline,
+  including pre-aborted finalization, parent/root identity and explicit forwarding.
+- Added durable resume and external composite examples, live smoke tooling,
+  Windows CI, isolated core/provider wheel checks, and manual TestPyPI publishing.
+- Retained the upstream pin and v4 session layout. Candidate preparation is not
+  evidence of a live endpoint pass, remote Windows/Linux CI pass, or publication.
+
+## Earlier implementation work
+
+- Improvement Phase 0: defined the core release contract and per-module evidence
+  matrix; recorded DS-01–DS-08 as strict expected-failure regression tests; corrected
+  stale naming and scope claims. DeepSeek adapter status is now `in-progress`; its
+  behavioral fixes are scheduled for improvement Phases 1–2. No runtime behavior
+  changes in this phase.
 
 - Repository tooling (plan Phase 0): `deskagents` packaging on hatchling and uv,
   CI on Python 3.11–3.13 (Linux) and 3.11 (macOS), tag-triggered PyPI release through
   trusted publishing, wheel and source-archive audits, and a core-only installation
   check.
 - Upstream tracking: [docs/upstream.json](docs/upstream.json) pins DeepSeek Harness
-  `ce7073d` and maps its 88 in-scope packages to Python modules;
+  `ce7073d` and maps upstream packages to Python modules; only milestone 0.1
+  belongs to this distribution, with later entries retained for external plugins;
   `scripts/upstream_changes.py` reports upstream changes since the pin.
 - Pinned copies of upstream's session-format inventory and finalized v4 baseline.
 - Boundary tests that reject product imports and undeclared dependencies, and a

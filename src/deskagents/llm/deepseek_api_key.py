@@ -43,6 +43,7 @@ def apply(ctx: Context, config: Mapping[str, Any] | None = None) -> Any:
         headers=config.get("headers"),
         max_tokens=int(config.get("maxTokens", 8192)),
         thinking=str(config.get("thinking", "enabled")),
+        reasoning_effort=config.get("reasoningEffort"),
         extensions=(
             extensions if isinstance(extensions, DeepSeekLlmApiExtensionRegistry) else None
         ),

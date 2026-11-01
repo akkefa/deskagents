@@ -19,6 +19,9 @@ jobs:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +29,8 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
         include:
           - os: macos-latest
+            python-version: "3.11"
+          - os: windows-latest
             python-version: "3.11"
     steps:
       - name: Check out repository
@@ -66,12 +71,5 @@ jobs:
       - name: Validate package-index description
         run: uv run --locked --all-extras --group packaging twine check --strict dist/*.whl dist/*.tar.gz
 
-      # Only the core runtime dependencies: proves `import deskagents` needs no extra.
-      - name: Install wheel with core dependencies only
-        run: |
-          uv venv --no-project --python "${{ matrix.python-version }}" "${RUNNER_TEMP}/harness-wheel"
-          uv pip install --python "${RUNNER_TEMP}/harness-wheel/bin/python" dist/*.whl
-
-      - name: Check installed package outside checkout
-        working-directory: ${{ runner.temp }}
-        run: '"${RUNNER_TEMP}/harness-wheel/bin/python" -I "${GITHUB_WORKSPACE}/scripts/check_installation.py"'
+      - name: Verify isolated wheel installations and provider extras
+        run: uv run --locked --all-extras --group packaging python scripts/check_wheel_environments.py

@@ -42,7 +42,7 @@
       "module": "deskagents.core.tools",
       "milestone": "0.1",
       "status": "in-progress",
-      "note": "Registry, scoped layers and guards are ported, as are the pipeline stages (pre-execute with optional approval routing; tools/execute with a replaceable signal fused into the body; post-execute value/content replacement and contexts; projectContent and finalizeContent; lossless materialization; late-abort results) and the batch scheduler (bounded pool, model-order commits, abort drain with synthetic results). tools.spec, activation.spec, execution-mode.spec and the value validator of json-schema.spec are catalogued; the schema assertion, schema DSL (schema.spec), scoped dispatch (scoped.spec) and properties suites are not yet. Nested composite dispatch and upstream's single-call pipeline path are not ported."
+      "note": "Registry, scoped layers and guards are ported, as are the pipeline stages (pre-execute with optional approval routing; tools/execute with a replaceable signal fused into the body; post-execute value/content replacement and contexts; projectContent and finalizeContent; lossless materialization; late-abort results) and the batch scheduler (bounded pool, model-order commits, abort drain with synthetic results). tools.spec, activation.spec, execution-mode.spec and the value validator of json-schema.spec are catalogued; the schema assertion, schema DSL (schema.spec), scoped dispatch (scoped.spec) and properties suites are not yet. Single-call and nested composite dispatch now share the native pipeline; all six previously deferred cases are ported. Broader uncatalogued verification remains deferred for alpha."
     },
     {
       "upstream": "packages/core/tool-executor-native",
@@ -110,8 +110,8 @@
       "npm": "@deepseek-ai/dsh-llm-deepseek",
       "module": "deskagents.llm.deepseek",
       "milestone": "0.1",
-      "status": "ported",
-      "note": "Messages API transport, native reasoning replay, tools, usage, SSE and provider-neutral failures are ported; attachment/file projection remains in the external attachment family."
+      "status": "in-progress",
+      "note": "DS-01 through DS-08 are fixed with passing regressions; request ordering, replay, model metadata, stream validation, SSE framing and cache usage are covered. HTTP/in-band errors follow upstream categories. Python retains an 8192 default output cap and in-history capabilities; hosted catalogs, image/file projection and broader uncatalogued tests remain outside the verified alpha contract."
     },
     {
       "upstream": "packages/llm/llm-deepseek-api-key",

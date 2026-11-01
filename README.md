@@ -5,10 +5,10 @@ agent runtime, built on [deepseek-cordis](https://github.com/akkefa/deepseek-cor
 
 PyPI distribution: `deskagents`. Python import: `deskagents`. Python 3.11+.
 
-> **Status: pre-alpha.** The standalone core runtime is runnable: Scope, Session v4,
-> JSONL persistence, projections, prompts, tools, the model seam, retry policy, token
-> metering, agent loop, bundle composition, DeepSeek Messages and OpenAI-compatible
-> adapters are implemented. See [the plan](docs/PLAN.md).
+> **Status: alpha candidate (`0.1.0a1`).** The standalone core is runnable and the
+> eight audited DeepSeek defects are fixed. Upstream compatibility remains partial;
+> see the [release contract](https://github.com/akkefa/deskagents/blob/main/docs/release-contract.md) for evidence and exclusions.
+> Live provider and remote platform checks are separate release gates.
 
 ## What it is
 
@@ -16,7 +16,7 @@ DeepSeek Harness is a TypeScript agent runtime in which every part (the model
 adapter, the tool registry, the session log, the agent loop) is a Cordis plugin.
 This package follows the same design in Python:
 
-- one Python module per upstream package, mapped in [docs/upstream.json](docs/upstream.json)
+- one Python module per upstream package, mapped in [docs/upstream.json](https://github.com/akkefa/deskagents/blob/main/docs/upstream.json)
 - the same event names, tool schemas and JSONL session format (v4); committed
   cross-runtime fixtures verify interoperability with the pinned `dsh` implementation
 - agents composed from id-addressed YAML plugin rows through the Python bundle loader
@@ -27,13 +27,13 @@ package runs the harness in-process in Python instead.
 
 ## Core release
 
-Release 0.1 is the complete scope of this distribution: session log and persistence,
+The target scope for release 0.1 is session log and persistence,
 prompts, tools, the agent loop, bundle composition, and DeepSeek/OpenAI-compatible
 model adapters.
 
 Execution, skills, web, MCP, Azure, telemetry and product integrations are separate
-plugin families. See the [plugin roadmap](docs/plugin-roadmap.md), and
-[extending deskagents](docs/extending.md) for writing a plugin package in another
+plugin families. See the [plugin roadmap](https://github.com/akkefa/deskagents/blob/main/docs/plugin-roadmap.md), and
+[extending deskagents](https://github.com/akkefa/deskagents/blob/main/docs/extending.md) for writing a plugin package in another
 repository.
 
 A manually ported headless DeepSeek Harness plugin can keep the pinned service names,
@@ -49,32 +49,82 @@ pip install "deskagents[deepseek]"
 # or: pip install "deskagents[openai]"
 ```
 
-Create the minimal standalone runtime and register a provider adapter:
+Set `DEEPSEEK_API_KEY` in your environment and optionally `DEEPSEEK_MODEL` to a
+model available to your account. Run this as a Python script:
 
 ```python
+import asyncio
+import os
+
 from deepseek_cordis import Context
+
 from deskagents.bundle import MINIMAL_BUNDLE, BundleLoader
-from deskagents.llm import LlmRuntime
+from deskagents.llm import LlmRuntime, create_user_message
 from deskagents.llm.deepseek import DeepSeekAdapter
 
-ctx = Context()
-await BundleLoader(ctx).load_file(MINIMAL_BUNDLE)
-llm = ctx.get("llm")
-assert isinstance(llm, LlmRuntime)
-llm.register_adapter(
-    ["deepseek"],
-    DeepSeekAdapter(api_key="...", models=({"id": "deepseek-chat"},)),
-)
+
+async def main() -> None:
+    ctx = Context()
+    loader = BundleLoader(ctx)
+    try:
+        await loader.load_file(MINIMAL_BUNDLE)
+        llm = ctx.get("llm")
+        assert isinstance(llm, LlmRuntime)
+        llm.register_adapter(
+            ["deepseek"],
+            DeepSeekAdapter(
+                api_key=os.environ["DEEPSEEK_API_KEY"],
+                models=({"id": os.getenv("DEEPSEEK_MODEL", "deepseek-chat")},),
+            ),
+        )
+        agents = ctx.get("agents")
+        handle = await agents.create(
+            {
+                "sessionId": "deepseek-example",
+                "agentOptions": {
+                    "provider": "deepseek",
+                    "model": os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+                },
+            }
+        )
+        try:
+            handle.agent.followup(
+                create_user_message(
+                    content=[{"type": "text", "text": "Say hello in one sentence."}],
+                    source={"kind": "user"},
+                )
+            )
+            await handle.agent.when_idle()
+            print(handle.agent.session.derive_messages()[-1]["content"][0]["text"])
+        finally:
+            await handle.dispose()
+    finally:
+        await loader.dispose()
+        await ctx.fiber.dispose()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 `deskagents.llm.openai.OpenAIAdapter` uses the same seam and supports custom compatible
 base URLs plus Azure OpenAI deployment URLs. See `examples/minimal_agent.py` for a
 network-free complete turn.
 
-## Name clash
+## Durable agents and plugins
 
-The unrelated PyPI package [`deskagents`](https://pypi.org/project/harness/) also installs a
-top-level `deskagents` module. Don't install both in one environment.
+[examples/durable_agent.py](https://github.com/akkefa/deskagents/blob/main/examples/durable_agent.py) composes JSONL storage,
+checkpointing, retry, token metering and a tool, then closes and resumes the session.
+It runs without network credentials:
+
+```sh
+python examples/durable_agent.py /path/to/new/session-store
+```
+
+The minimal bundle supplies the core services and checkpoint policy; it does not
+register a provider or enable persistent storage, retry, or token metering for you.
+See [model adapters](https://github.com/akkefa/deskagents/blob/main/docs/model-adapters.md), [plugin development](https://github.com/akkefa/deskagents/blob/main/docs/extending.md),
+and [publishing](https://github.com/akkefa/deskagents/blob/main/docs/publishing.md).
 
 ## Development
 

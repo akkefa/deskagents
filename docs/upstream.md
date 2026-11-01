@@ -7,7 +7,9 @@ The pinned upstream TypeScript source is the specification for this package.
 [upstream.json](upstream.json) records one upstream commit for the whole package, and
 maps every upstream package in scope to its Python module, release milestone and
 porting status (`planned`, `in-progress`, `ported`). It also lists the modules that
-have no upstream package (`new_modules`).
+have no upstream package (`new_modules`). These statuses describe porting work,
+not exhaustive compatibility. The [release contract](release-contract.md) separates
+implementation status, catalogued evidence, intentional adaptations, and open defects.
 
 `watched` lists unmapped upstream packages that milestone `0.1` packages import, such
 as `util/brand`, `util/timeout` and `typert/protocol`. Python inlines or omits their

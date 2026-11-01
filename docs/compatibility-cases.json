@@ -3786,9 +3786,11 @@
     {
       "id": "core/tools::settles-calls-of-a-cancelled-step-through-cancellation-with-their-finalizers",
       "source": "packages/core/tools/tests/activation.spec.ts::settles calls of a cancelled step through cancellation with their finalizers",
-      "classification": "deferred",
-      "python_tests": [],
-      "notes": "Needs upstream's single-call pipeline path (executeToolFixture). Python exposes only batches, where a pre-aborted call is skipped with a synthetic result and no finalizer."
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_single_call.py::test_admitted_cancelled_call_runs_finalizer"
+      ],
+      "notes": "Single-call execution uses the shared native pipeline; nested identity and cancellation finalization are covered."
     },
     {
       "id": "core/tools::toolexecutionpipeline-executionmode-classifies-invalid-definecontenttoolfixture-arguments-as-exclusive-without-throwing",
@@ -4461,9 +4463,11 @@
     {
       "id": "core/tools::toolruntime-carries-a-nested-conclusion-on-the-nested-result-for-its-composite-to-forward",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > carries a nested conclusion on the nested result for its composite to forward",
-      "classification": "deferred",
-      "python_tests": [],
-      "notes": "Needs nested composite dispatch (a tool running other tools through the pipeline), which the Python runtime does not provide yet."
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_single_call.py::test_composite_forwards_only_successful_conclusion"
+      ],
+      "notes": "Single-call execution uses the shared native pipeline; nested identity and cancellation finalization are covered."
     },
     {
       "id": "core/tools::toolruntime-classifies-a-throwing-body-snapshot-as-invalid-tool-output",
@@ -4639,9 +4643,11 @@
     {
       "id": "core/tools::toolruntime-lets-argument-materialization-failure-win-over-a-pre-aborted-signal",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > lets argument materialization failure win over a pre-aborted signal",
-      "classification": "deferred",
-      "python_tests": [],
-      "notes": "Needs upstream's single-call pipeline path (executeToolFixture). Python exposes only batches, where a pre-aborted call is skipped without a tools/result notification."
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_single_call.py::test_invalid_arguments_precede_cancellation"
+      ],
+      "notes": "Single-call execution uses the shared native pipeline; nested identity and cancellation finalization are covered."
     },
     {
       "id": "core/tools::toolruntime-maps-an-explicit-pre-execute-cancellation-to-the-canonical-before-dispatch-result",
@@ -4655,9 +4661,11 @@
     {
       "id": "core/tools::toolruntime-materializes-a-pre-aborted-call-and-publishes-one-result-without-entering-pipeline-phases",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > materializes a pre-aborted call and publishes one result without entering pipeline phases",
-      "classification": "deferred",
-      "python_tests": [],
-      "notes": "Needs upstream's single-call pipeline path (executeToolFixture). Python exposes only batches, where a pre-aborted call is skipped without a tools/result notification."
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_single_call.py::test_preaborted_single_call_materializes_and_notifies"
+      ],
+      "notes": "Single-call execution uses the shared native pipeline; nested identity and cancellation finalization are covered."
     },
     {
       "id": "core/tools::toolruntime-normalizes-a-contract-violating-non-cloneable-result-before-final-notification",
@@ -4806,9 +4814,11 @@
     {
       "id": "core/tools::toolruntime-projects-presentation-metadata-for-native-and-nested-composite-dispatches",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > projects presentation metadata for native and nested composite dispatches",
-      "classification": "deferred",
-      "python_tests": [],
-      "notes": "Needs nested composite dispatch (a tool running other tools through the pipeline), which the Python runtime does not provide yet."
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_single_call.py::test_nested_presentation_metadata"
+      ],
+      "notes": "Single-call execution uses the shared native pipeline; nested identity and cancellation finalization are covered."
     },
     {
       "id": "core/tools::toolruntime-projects-presentation-metadata-from-the-canonical-value",
@@ -4939,9 +4949,11 @@
     {
       "id": "core/tools::toolruntime-reports-cancellation-before-an-executor-refusal-without-entering-policy",
       "source": "packages/core/tools/tests/tools.spec.ts::ToolRuntime > reports cancellation before an executor refusal without entering policy",
-      "classification": "deferred",
-      "python_tests": [],
-      "notes": "Drives ToolExecutionPipeline.prepare and complete directly; Python has no public pipeline class yet."
+      "classification": "ported",
+      "python_tests": [
+        "tests/core/test_single_call.py::test_cancellation_precedes_executor_refusal"
+      ],
+      "notes": "Single-call execution uses the shared native pipeline; nested identity and cancellation finalization are covered."
     },
     {
       "id": "core/tools::toolruntime-requires-every-raw-registration-to-declare-its-canonical-output",
@@ -5268,11 +5280,47 @@
       "notes": ""
     },
     {
+      "id": "llm/llm-deepseek::omits-saved-empty-assistant-text-without-changing-tool-ids-or-thinking-signatures",
+      "source": "packages/llm/llm-deepseek/tests/serialize.spec.ts::omits saved empty assistant text without changing tool ids or thinking signatures",
+      "classification": "ported",
+      "python_tests": [
+        "tests/llm/deepseek/test_protocol.py::test_empty_text_keeps_replay_alignment"
+      ],
+      "notes": ""
+    },
+    {
       "id": "llm/llm-deepseek::emits-first-seen-blocks-raw-tool-json-and-cumulative-disjoint-usage-before-finish",
       "source": "packages/llm/llm-deepseek/tests/stream.spec.ts::emits first-seen blocks, raw tool JSON and cumulative disjoint usage before finish",
       "classification": "ported",
       "python_tests": [
         "tests/llm/deepseek/test_adapter.py::test_recorded_stream_translation"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "llm/llm-deepseek::sse-framing-and-provider-failures-does-not-flush-an-unterminated-terminal-event",
+      "source": "packages/llm/llm-deepseek/tests/stream.spec.ts::SSE framing and provider failures > does not flush an unterminated terminal event",
+      "classification": "ported",
+      "python_tests": [
+        "tests/llm/deepseek/test_protocol.py::test_unterminated_sse_tail_is_not_dispatched"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "llm/llm-deepseek::sse-framing-and-provider-failures-normalizes-in-band-overloads",
+      "source": "packages/llm/llm-deepseek/tests/stream.spec.ts::SSE framing and provider failures > normalizes in-band overloads",
+      "classification": "ported",
+      "python_tests": [
+        "tests/llm/deepseek/test_protocol.py::test_inband_overload_is_retryable_server_error"
+      ],
+      "notes": ""
+    },
+    {
+      "id": "llm/llm-deepseek::sse-framing-and-provider-failures-retains-request-identity-and-valid-retry-after-without-inventing-missing-counters",
+      "source": "packages/llm/llm-deepseek/tests/stream.spec.ts::SSE framing and provider failures > retains request identity and valid Retry-After without inventing missing counters",
+      "classification": "ported",
+      "python_tests": [
+        "tests/llm/deepseek/test_protocol.py::test_provider_retry_metadata"
       ],
       "notes": ""
     },

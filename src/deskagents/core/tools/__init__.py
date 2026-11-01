@@ -587,6 +587,29 @@ class ToolsService(Service):
         result = await self._select_executor(input_.get("agent")).execute(input_)
         return cast(Mapping[str, Any], result)
 
+    async def execute_call(
+        self, input_: Mapping[str, Any], *, parent: ToolRunContext | None = None
+    ) -> Mapping[str, Any]:
+        """Execute one parsed call through policy and finalization, without a log batch.
+
+        Composite bodies may supply their execution as ``parent`` to inherit the
+        scope, admission, signal and root correlation. Conclusions and deferred
+        contexts are returned to the composite; forwarding them is explicit.
+        """
+        options = dict(input_)
+        if parent is not None:
+            if parent._settled:
+                raise TypeError("cannot dispatch from a settled parent execution")
+            for key in ("signal", "agent", "toolSet", "rootCallId"):
+                options.setdefault(key, parent.get(key))
+            options["parent"] = parent["token"]
+        executor = self._select_executor(options.get("agent"))
+        execute_call = getattr(executor, "execute_call", None)
+        if not callable(execute_call):
+            raise TypeError("selected executor does not support single-call dispatch")
+        result = await execute_call(options)
+        return cast(Mapping[str, Any], result)
+
     def guard(
         self,
         guard: Callable[[Mapping[str, Any]], str | None],
@@ -611,12 +634,48 @@ class ToolsService(Service):
 
 
 class NativeToolExecutor:
-    def __init__(self, ctx: Context, max_parallel: Callable[[], int] = lambda: 10) -> None:
+    def __init__(
+        self,
+        ctx: Context,
+        max_parallel: Callable[[], int] = lambda: 10,
+        *,
+        source: Mapping[str, Callable[..., Any]] | None = None,
+    ) -> None:
         self.ctx, self.max_parallel = ctx, max_parallel
+        self.source = dict(source or {})
         tools = ctx.get("tools")
         if not isinstance(tools, ToolsService):
             raise RuntimeError("NativeToolExecutor requires ToolsService")
         self.tools = tools
+
+    def _lookup(self, name: str, input_: Mapping[str, Any]) -> Mapping[str, Any] | None:
+        get = cast(Callable[..., Any], self.source.get("get", self.tools.executable))
+        result = get(name, input_.get("agent"), input_.get("toolSet"))
+        return cast(Mapping[str, Any] | None, result)
+
+    def _refusal(self, name: str, input_: Mapping[str, Any]) -> BaseException | None:
+        reject = self.source.get("reject")
+        return (
+            None if reject is None else cast(BaseException | None, reject(name, "parent" in input_))
+        )
+
+    async def execute_call(self, input_: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Run a parsed single call through the same stages used by batch dispatch.
+
+        Unlike a skipped batch slot, a pre-aborted single call snapshots arguments,
+        runs its finalizer and publishes one result. Nested calls do not acquire a
+        batch worker slot, so a composite works even with a pool limit of one.
+        """
+        options = {**input_, "signal": input_.get("signal"), "_arguments_are_parsed": True}
+        block = {
+            "id": input_["callId"],
+            "name": input_["name"],
+            "arguments": input_.get("arguments", {}),
+        }
+        prepared = await self._prepare(block, options)
+        if prepared.kind == "dispatch":
+            prepared = await self._dispatch(prepared.call, options)
+        return await self._complete(prepared, options)
 
     def describe(self, tools: Sequence[Mapping[str, Any]]) -> Mapping[str, Any]:
         return {"schemas": [project_tool_schema(tool, False) for tool in tools]}
@@ -689,8 +748,12 @@ class NativeToolExecutor:
 
     def _execution_mode(self, block: Mapping[str, Any], input_: Mapping[str, Any]) -> str:
         """Only an exact ``True`` from the visible tool's classifier runs in parallel."""
-        tool = self.tools.executable(block["name"], input_.get("agent"), input_.get("toolSet"))
-        classifier = None if tool is None else tool.get("isConcurrencySafe")
+        tool = self._lookup(block["name"], input_)
+        classifier = (
+            None
+            if tool is None or self._refusal(block["name"], input_) is not None
+            else tool.get("isConcurrencySafe")
+        )
         if not callable(classifier):
             return "exclusive"
         try:
@@ -702,19 +765,30 @@ class NativeToolExecutor:
     def _create(self, block: Mapping[str, Any], input_: Mapping[str, Any]) -> _Call | _Scheduled:
         signal = input_["signal"]
         agent = input_.get("agent")
-        tool = self.tools.executable(block["name"], agent, input_.get("toolSet"))
+        tool = self._lookup(block["name"], input_)
+        refusal = None if tool is None else self._refusal(block["name"], input_)
         project = None if tool is None else tool.get("projectContent")
-        finalize = None if tool is None else tool.get("finalizeContent")
+        finalize = (
+            None
+            if tool is None or (refusal is not None and not _aborted(signal))
+            else tool.get("finalizeContent")
+        )
         values = {
             "callId": block["id"],
-            "rootCallId": block["id"],
+            "rootCallId": input_.get("rootCallId", block["id"]),
+            **({"parent": input_["parent"]} if "parent" in input_ else {}),
+            **({"schema": input_["schema"]} if "schema" in input_ else {}),
             "name": block["name"],
             "agent": agent,
             "toolSet": input_.get("toolSet"),
             "signal": signal,
             "token": object(),
         }
-        arguments = _parse_arguments(block.get("arguments"))
+        arguments = (
+            block.get("arguments")
+            if input_.get("_arguments_are_parsed")
+            else _parse_arguments(block.get("arguments"))
+        )
         scope = scope_target(self.tools, agent)
         if not is_json_value(arguments):
             failed = _Call(
@@ -726,7 +800,7 @@ class NativeToolExecutor:
             )
             error = TypeError("tool execution arguments must be losslessly JSON-serializable")
             return _Scheduled("final-result", failed, _failure(error))
-        return _Call(
+        call = _Call(
             block,
             ToolRunContext({**values, "arguments": deep_freeze(snapshot_json_value(arguments))}),
             signal,
@@ -734,6 +808,11 @@ class NativeToolExecutor:
             project=project if callable(project) else None,
             finalize=finalize if callable(finalize) else None,
         )
+
+        if refusal is not None:
+            result = _aborted_before_dispatch_result() if _aborted(signal) else _failure(refusal)
+            return _Scheduled("final-result", call, result)
+        return call
 
     def _success_result(
         self,
@@ -743,7 +822,7 @@ class NativeToolExecutor:
     ) -> dict[str, Any]:
         execution = call.execution
         name = execution["name"]
-        tool = self.tools.executable(name, input_.get("agent"), input_.get("toolSet"))
+        tool = self._lookup(name, input_)
         if tool is None:
             raise ToolNotFoundError(name)
         detached = _snapshot_value(name, value)
@@ -991,9 +1070,7 @@ class NativeToolExecutor:
                 return _aborted_before_dispatch_result()
             execution.signal = fused
             try:
-                tool = self.tools.executable(
-                    execution["name"], input_.get("agent"), input_.get("toolSet")
-                )
+                tool = self._lookup(execution["name"], input_)
                 if tool is None:
                     raise ToolNotFoundError(execution["name"])
                 call.body_invoked = True

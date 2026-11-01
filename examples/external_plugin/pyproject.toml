@@ -4,13 +4,15 @@ name = "deskagents-example-skills"
 version = "0.1.0"
 description = "Example deskagents plugin family: a skill registry, a provider and a model-facing tool"
 requires-python = ">=3.11"
-dependencies = ["deskagents>=0.1,<0.2", "deepseek-cordis>=0.2.0,<0.3"]
+dependencies = ["deskagents>=0.1.0a1,<0.2", "deepseek-cordis>=0.2.0,<0.3"]
 
 # Each entry-point name is what a bundle row's `name` refers to.
 [project.entry-points."deskagents.plugins"]
 "deskagents_example_skills" = "deskagents_example_skills:SkillRegistry"
 "deskagents_example_skills.config" = "deskagents_example_skills.config"
 "deskagents_example_skills.tool_skill" = "deskagents_example_skills.tool_skill"
+
+"deskagents_example_skills.tool_composite" = "deskagents_example_skills.tool_composite"
 
 [build-system]
 requires = ["hatchling>=1.27"]

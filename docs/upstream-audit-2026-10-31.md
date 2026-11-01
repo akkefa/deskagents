@@ -1,5 +1,9 @@
 # Upstream audit — 2026-10-31
 
+Historical audit: counts and completion statements below describe that review.
+For the 2026-11-01 baseline, confirmed adapter defects, and current verification
+limits, see [release-contract.md](release-contract.md).
+
 ## Baseline
 
 - DeepSeek Harness: `ce7073d51254c26cd63b22a60835b8f948deb447`

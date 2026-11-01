@@ -1,7 +1,13 @@
 # Harness package: implementation plan
 
 Status: **implementation in progress, revision 3**.
-Date: 2026-10-31.
+Date: 2026-10-31. Release-contract update: 2026-11-01.
+
+The original port phases below describe implementation history. The active
+[improvement plan](improvement-plan.md) has its own Phases 0–6; improvement
+Phases 0–3 are implemented; remaining local candidate work is prepared.
+See the [release contract](release-contract.md) for pending external release gates. A module marked
+implemented or ported is not a claim of complete upstream verification.
 
 Revision 2 makes the upstream TypeScript DeepSeek Harness the source of truth.
 Revision 1 (a port of the PepGPT Python harness) is replaced.
@@ -33,7 +39,7 @@ migration. This is not a compatibility alias for PepGPT's existing import tree. 
 | Composition | Upstream-style config rows. Bundles are YAML row lists loaded through the deepseek-cordis `Loader`, plus a Python API that builds the same rows. |
 | Model adapters | Port upstream's DeepSeek adapter (`[deepseek]`) and add a generic OpenAI-compatible adapter (`[openai]`). |
 | Extension model | Core capability seams and contract suites live here. Execution, skills, web, MCP, Azure and product providers ship as separate distributions; see [plugin-roadmap.md](plugin-roadmap.md). |
-| Distribution name | `deskagents` on PyPI. `deskagents` and `deepseek-harness` are taken by unrelated projects. |
+| Distribution name | `deskagents` on PyPI; `deskagents` is also the Python import name. Package-name acceptance must be checked during release preparation. |
 | Import name | `import deskagents`. Upstream's own Python SDK uses `deepseek_harness`; it drives the Node `dsh` binary over JSON-RPC and is a different thing. |
 | Python | `>=3.11`, same as deepseek-cordis. CI runs 3.11, 3.12, 3.13. |
 | License | Apache-2.0 (already in the repo). MIT notices for DeepSeek Harness and Cordis in `THIRD_PARTY_NOTICES.md`. |
@@ -43,7 +49,7 @@ migration. This is not a compatibility alias for PepGPT's existing import tree. 
 
 | What | Path or URL | Pinned at |
 |---|---|---|
-| **This package (target)** | `/Users/iali/workplace/projects/personal/harness` · <https://github.com/akkefa/deskagents> | `main` @ `397471b` (uv scaffold only) |
+| **This package (target)** | `/Users/iali/workplace/projects/personal/deskagents` · <https://github.com/akkefa/deskagents> | Release-contract baseline `d3cdcaa` (2026-11-01) |
 | **Upstream DeepSeek Harness (source of truth)** | `/Users/iali/workplace/projects/personal/deepseek-harness` · <https://github.com/deepseek-ai/deepseek-harness> | `master` @ `ce7073d` (2026-10-30) |
 | Upstream architecture docs | `deepseek-harness/docs/architecture.md`, `docs/capability-seams.md`, `docs/subsystems/*.md` | same |
 | Upstream session format | `deepseek-harness/docs/session-format-status.md`, `docs/persistence-schema.json`, `docs/persistence-changes/finalized/v4.json` | format v4 |
@@ -120,7 +126,7 @@ repositories following [plugin-roadmap.md](plugin-roadmap.md).
 ## Target layout
 
 ```
-harness/                              repo root
+deskagents/                           repo root
   src/deskagents/
     __init__.py  py.typed
     core/
@@ -415,8 +421,8 @@ move the pin, and port the changes that are approved.
 - **Fixtures need a Node build.** Generating `dsh` fixtures needs Node ≥ 24.9 and a
   pnpm build of the upstream checkout. It is a one-off per pin; committed fixtures are
   checked in Python CI and the generation script is rerun whenever the pin moves.
-- **`import deskagents` clash.** The unrelated PyPI `deskagents` package installs the same
-  top-level module. The last cheap time to rename is before 0.1.0.
+- **Distribution identity.** Use `deskagents` consistently for the distribution and
+  import. The earlier name-clash claim was not substantiated and has been removed.
 - **Cordis evolution.** deepseek-cordis 0.2.0 closes the core public-API gaps. A future
   upstream vendored Cordis/Loader move still requires a coordinated Cordis release and
   harness pin audit.

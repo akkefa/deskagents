@@ -13,37 +13,41 @@ from deskagents.llm.openai import OpenAIAdapter
 async def main() -> None:
     ctx = Context()
     loader = BundleLoader(ctx)
-    await loader.load_file(MINIMAL_BUNDLE)
-    llm = ctx.get("llm")
-    assert isinstance(llm, LlmRuntime)
-    llm.register_adapter(
-        ["openai"],
-        OpenAIAdapter(
-            api_key=os.environ["OPENAI_API_KEY"],
-            models=({"id": os.getenv("OPENAI_MODEL", "gpt-4.1-mini")},),
-        ),
-    )
-    agents = ctx.get("agents")
-    handle = await agents.create(
-        {
-            "sessionId": "openai-example",
-            "agentOptions": {
-                "provider": "openai",
-                "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-            },
-        }
-    )
-    handle.agent.followup(
-        create_user_message(
-            content=[{"type": "text", "text": "Say hello in one sentence."}],
-            source={"kind": "user"},
+    try:
+        await loader.load_file(MINIMAL_BUNDLE)
+        llm = ctx.get("llm")
+        assert isinstance(llm, LlmRuntime)
+        llm.register_adapter(
+            ["openai"],
+            OpenAIAdapter(
+                api_key=os.environ["OPENAI_API_KEY"],
+                models=({"id": os.getenv("OPENAI_MODEL", "gpt-4.1-mini")},),
+            ),
         )
-    )
-    await handle.agent.when_idle()
-    print(handle.agent.session.derive_messages()[-1]["content"][0]["text"])
-    await handle.dispose()
-    await loader.dispose()
-    await ctx.fiber.dispose()
+        agents = ctx.get("agents")
+        handle = await agents.create(
+            {
+                "sessionId": "openai-example",
+                "agentOptions": {
+                    "provider": "openai",
+                    "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+                },
+            }
+        )
+        try:
+            handle.agent.followup(
+                create_user_message(
+                    content=[{"type": "text", "text": "Say hello in one sentence."}],
+                    source={"kind": "user"},
+                )
+            )
+            await handle.agent.when_idle()
+            print(handle.agent.session.derive_messages()[-1]["content"][0]["text"])
+        finally:
+            await handle.dispose()
+    finally:
+        await loader.dispose()
+        await ctx.fiber.dispose()
 
 
 if __name__ == "__main__":

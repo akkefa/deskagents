@@ -60,6 +60,18 @@ archive.
 
 ## Releases
 
+Follow [the release contract](docs/release-contract.md) and the separately numbered
+[improvement phases](docs/improvement-plan.md). The eight audited adapter regressions now pass in
+`tests/llm/deepseek/test_release_regressions.py`; no expected-failure markers remain.
+Source-indexed cases live in the compatibility catalog; the remaining upstream
+case inventory records verification still deferred for the alpha.
+
+Pushing a matching `v*` tag triggers production publishing through `release.yml`;
+use the separate manually triggered `testpypi.yml` workflow for rehearsal. A tag must exactly match the project
+version. Preparing changes or artifacts does not authorize pushing a release tag.
+
 Release decisions belong to the maintainer. Preparing artifacts does not authorize
 publishing them. In agent-assisted work, don't push, tag or publish without the
 maintainer's explicit request.
+
+See [publishing.md](docs/publishing.md) for account configuration and release gates.

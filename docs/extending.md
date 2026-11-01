@@ -239,3 +239,27 @@ family; a full port follows the upstream packages above and their tests.
 
 Use only public `deskagents` and `deepseek-cordis` APIs; modules and attributes whose
 names start with an underscore are private.
+
+## Single-call and composite execution
+
+`await tools.execute_call({"callId": "unique-id", "name": "tool-name",
+"arguments": {...}, "signal": signal})` dispatches parsed arguments through the
+same policy/body/post-processing/finalization stages as native batches. It returns
+one immutable result and publishes `tools/result`. A pre-aborted single call still
+snapshots arguments, finalizes, and notifies; an unstarted batch slot retains the
+batch scheduler's synthetic-result behavior.
+
+Inside a composite body, pass `parent=execution` to inherit scope, step admission,
+signal and root call identity. Use a unique child call ID. Nested calls do not
+reserve another batch worker slot. They do not append separate root session log
+entries: the outer call owns its model-visible result. Forward `additionalContexts`
+and successful `concludesTurn` explicitly when the composite's semantics require it;
+a blocked or failed nested result must not conclude the outer turn.
+
+The optional external example module
+`examples/external_plugin/src/deskagents_example_skills/tool_composite.py` demonstrates
+this pattern and is exercised by the reusable plugin unload/remount contract.
+Custom executors must implement `execute_call` to expose this path. Native executors
+also accept optional `source` callbacks (`get`, `reject`) for executor-owned lookup
+and restrictions; rejection precedes extensible policy, with cancellation taking
+precedence over rejection.

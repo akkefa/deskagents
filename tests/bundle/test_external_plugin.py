@@ -74,7 +74,7 @@ def skill_turn() -> ScriptedAdapter:
     )
 
 
-async def external_plugin_backend() -> PluginContractBackend:
+async def external_plugin_backend(*, composite: bool = False) -> PluginContractBackend:
     patches = yaml.safe_load((PLUGIN / "bundle.yml").read_text())
     ctx = Context()
     loader = BundleLoader(ctx)
@@ -91,17 +91,33 @@ async def external_plugin_backend() -> PluginContractBackend:
     families: list[Any] = []
 
     async def mount() -> None:
-        families.append(await loader.load(apply_row_patches([], patches)))
+        rows = apply_row_patches([], patches)
+        if composite:
+            rows.append({"id": "composite", "name": "deskagents_example_skills.tool_composite"})
+        families.append(await loader.load(rows))
 
     async def dispose_plugin() -> None:
         await families.pop().dispose()
 
     async def assert_active() -> None:
-        assert [tool["name"] for tool in tools.definitions()] == ["skill"]
+        assert sorted(tool["name"] for tool in tools.definitions()) == (
+            ["skill", "skill_composite"] if composite else ["skill"]
+        )
         assembly = await prompt.assemble({})
         assert "skills" in [section["name"] for section in assembly["sections"]]
 
     async def exercise() -> None:
+        if composite:
+            result = await tools.execute_call(
+                {
+                    "callId": "outer",
+                    "name": "skill_composite",
+                    "arguments": {"name": "release-notes"},
+                }
+            )
+            assert result["isError"] is False
+            assert result["value"].startswith("Group changes")
+            return
         handle = await agents.create(
             {
                 "sessionId": "plugin-contract",
@@ -298,3 +314,16 @@ def test_a_name_declared_twice_is_rejected(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(deskagents.bundle, "entry_points", lambda *, group, name: twice)
     with pytest.raises(ValueError, match="declared by several distributions: a:apply, b:apply"):
         deskagents.bundle.installed_plugin("shared")
+
+
+@pytest.mark.asyncio
+async def test_external_composite_passes_lifecycle_contract(
+    installed: list[importlib.metadata.EntryPoint],
+) -> None:
+    del installed
+
+    async def backend() -> PluginContractBackend:
+        return await external_plugin_backend(composite=True)
+
+    results = await run_plugin_contract(backend)
+    assert [result.outcome for result in results] == ["passed"] * 4, results

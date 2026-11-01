@@ -1,0 +1,60 @@
+name: Rehearse on TestPyPI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testpypi-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.2"
+          python-version: "3.11"
+      - run: uv sync --locked --group packaging
+      - run: uv build
+      - run: uv run --locked --group packaging python scripts/check_distribution.py dist/*.whl dist/*.tar.gz
+      - run: uv run --locked --group packaging twine check --strict dist/*.whl dist/*.tar.gz
+      - name: Store checked distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: testpypi-distributions
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Configure a separate TestPyPI publisher for testpypi.yml and environment testpypi.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/deskagents/
+    permissions:
+      id-token: write
+    steps:
+      - name: Retrieve checked distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: testpypi-distributions
+          path: dist/
+      - name: Publish using TestPyPI Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
