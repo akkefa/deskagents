@@ -42,31 +42,31 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Install locked development and packaging tools
-        run: uv sync --locked --group packaging
+        run: uv sync --locked --all-extras --group packaging
 
       - name: Test
-        run: uv run --locked --group packaging pytest -W error
+        run: uv run --locked --all-extras --group packaging pytest -W error
 
       - name: Lint
-        run: uv run --locked --group packaging ruff check .
+        run: uv run --locked --all-extras --group packaging ruff check .
 
       - name: Check formatting
-        run: uv run --locked --group packaging ruff format --check .
+        run: uv run --locked --all-extras --group packaging ruff format --check .
 
       - name: Check types
-        run: uv run --locked --group packaging mypy --python-version ${{ matrix.python-version }}
+        run: uv run --locked --all-extras --group packaging mypy --python-version ${{ matrix.python-version }}
 
       - name: Build wheel from source archive
         run: uv build
 
       # A fresh checkout/build produces exactly one wheel and one source archive.
       - name: Audit distribution contents and metadata
-        run: uv run --locked --group packaging python scripts/check_distribution.py dist/*.whl dist/*.tar.gz
+        run: uv run --locked --all-extras --group packaging python scripts/check_distribution.py dist/*.whl dist/*.tar.gz
 
       - name: Validate package-index description
-        run: uv run --locked --group packaging twine check --strict dist/*.whl dist/*.tar.gz
+        run: uv run --locked --all-extras --group packaging twine check --strict dist/*.whl dist/*.tar.gz
 
-      # Only the core runtime dependencies: proves `import harness` needs no extra.
+      # Only the core runtime dependencies: proves `import deskagents` needs no extra.
       - name: Install wheel with core dependencies only
         run: |
           uv venv --no-project --python "${{ matrix.python-version }}" "${RUNNER_TEMP}/harness-wheel"

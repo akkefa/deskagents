@@ -1,6 +1,6 @@
 # Third-party notices
 
-cordis-harness is a Python implementation of the DeepSeek Harness architecture. Its
+deskagents is a Python implementation of the DeepSeek Harness architecture. Its
 module layout, event vocabulary, session file format and behaviour follow the
 pinned upstream TypeScript source recorded in [docs/upstream.json](docs/upstream.json),
 and its tests adapt upstream test cases listed in

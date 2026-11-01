@@ -18,7 +18,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 
-IMPORT_NAME = "harness"
+IMPORT_NAME = "deskagents"
 SDIST_FOLDERS = ["src", "tests", "docs", "scripts", "examples"]
 SDIST_FILES = [
     ".gitignore",

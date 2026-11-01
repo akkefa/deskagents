@@ -1,0 +1,13 @@
+# Rows a host appends to the core bundle once the plugin distribution is installed.
+- insert:
+    - id: skills
+      name: deskagents_example_skills
+    - id: skills-config
+      name: deskagents_example_skills.config
+      config:
+        skills:
+          - name: release-notes
+            description: Draft release notes from merged pull requests.
+            instructions: Group changes by user impact and link each pull request.
+    - id: tool-skill
+      name: deskagents_example_skills.tool_skill

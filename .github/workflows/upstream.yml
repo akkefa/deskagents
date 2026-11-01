@@ -1,0 +1,92 @@
+name: Upstream watch
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+jobs:
+  harness:
+    name: DeepSeek Harness drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Full history without file contents: the script reads logs, trees and a few blobs.
+      - name: Check out upstream DeepSeek Harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: deepseek-ai/deepseek-harness
+          path: upstream
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.2"
+          python-version: "3.11"
+
+      - name: Verify the pin
+        run: uv run --no-project python scripts/upstream_changes.py --upstream upstream --check
+
+      - name: Report changes since the pin
+        id: report
+        run: |
+          set +e
+          uv run --no-project python scripts/upstream_changes.py --upstream upstream --exit-code \
+            > "${RUNNER_TEMP}/report.txt"
+          status=$?
+          set -e
+          cat "${RUNNER_TEMP}/report.txt"
+          case "${status}" in
+            0) echo "changed=false" >> "${GITHUB_OUTPUT}" ;;
+            3) echo "changed=true" >> "${GITHUB_OUTPUT}" ;;
+            *) exit "${status}" ;;
+          esac
+
+      - name: Open or update the tracking issue
+        if: steps.report.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: Upstream DeepSeek Harness changed since the pin
+        run: |
+          report="${RUNNER_TEMP}/report.txt"
+          body="${RUNNER_TEMP}/body.md"
+          range="$(head -n 1 "${report}")"
+          guide="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/main/docs/upstream.md#moving-the-pin"
+          {
+            echo "The scheduled upstream watch found changes since the pin in \`docs/upstream.json\`."
+            echo
+            echo '```text'
+            cat "${report}"
+            echo '```'
+            echo
+            echo "Triage each change as described in [Moving the pin](${guide})."
+          } > "${body}"
+          number="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open \
+            --search "\"${TITLE}\" in:title" --json number --jq '.[0].number // empty')"
+          if [ -z "${number}" ]; then
+            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${TITLE}" --body-file "${body}"
+          else
+            previous="$(gh issue view "${number}" --repo "${GITHUB_REPOSITORY}" --json body --jq .body)"
+            if ! grep -qF "${range}" <<< "${previous}"; then
+              gh issue comment "${number}" --repo "${GITHUB_REPOSITORY}" --body "${range}"
+            fi
+            gh issue edit "${number}" --repo "${GITHUB_REPOSITORY}" --body-file "${body}"
+          fi

@@ -3,654 +3,782 @@
   "upstream": {
     "repository": "https://github.com/deepseek-ai/deepseek-harness",
     "commit": "ce7073d51254c26cd63b22a60835b8f948deb447",
-    "date": "2026-10-30"
+    "date": "2026-10-30",
+    "vendor": {
+      "vendor/cordis": "4.0.6-alpha.1",
+      "vendor/loader": "1.0.7-alpha.1"
+    }
+  },
+  "distribution_scope": {
+    "core_milestone": "0.1",
+    "policy": "Only milestone 0.1 modules belong to deskagents. Later milestones are retained as an extension-package source inventory and are not planned modules of this distribution.",
+    "roadmap": "docs/plugin-roadmap.md"
   },
   "packages": [
     {
       "upstream": "packages/core/scope",
       "npm": "@deepseek-ai/dsh-scope",
-      "module": "harness.core.scope",
+      "module": "deskagents.core.scope",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/core/session",
       "npm": "@deepseek-ai/dsh-session",
-      "module": "harness.core.session",
+      "module": "deskagents.core.session",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/core/system-prompt",
       "npm": "@deepseek-ai/dsh-system-prompt",
-      "module": "harness.core.system_prompt",
+      "module": "deskagents.core.system_prompt",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/core/tools",
       "npm": "@deepseek-ai/dsh-tools",
-      "module": "harness.core.tools",
+      "module": "deskagents.core.tools",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "in-progress",
+      "note": "Registry, scoped layers and guards are ported, as are the pipeline stages (pre-execute with optional approval routing; tools/execute with a replaceable signal fused into the body; post-execute value/content replacement and contexts; projectContent and finalizeContent; lossless materialization; late-abort results) and the batch scheduler (bounded pool, model-order commits, abort drain with synthetic results). tools.spec, activation.spec, execution-mode.spec and the value validator of json-schema.spec are catalogued; the schema assertion, schema DSL (schema.spec), scoped dispatch (scoped.spec) and properties suites are not yet. Nested composite dispatch and upstream's single-call pipeline path are not ported."
     },
     {
       "upstream": "packages/core/tool-executor-native",
       "npm": "@deepseek-ai/dsh-tool-executor-native",
-      "module": "harness.core.tool_executor_native",
+      "module": "deskagents.core.tool_executor_native",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/core/agent",
       "npm": "@deepseek-ai/dsh-agent",
-      "module": "harness.core.agent",
+      "module": "deskagents.core.agent",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "in-progress",
+      "note": "Registry, scoped agent events with contained notifications, model selection and draining initiator boundaries are ported; the rest of the upstream suite is not yet catalogued."
     },
     {
       "upstream": "packages/core/agent-loop",
       "npm": "@deepseek-ai/dsh-agent-loop",
-      "module": "harness.core.agent_loop",
+      "module": "deskagents.core.agent_loop",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "in-progress",
+      "note": "Turn and step driving, inbox, pre-step, request, request-error, assistant-stream (including interrupted partial output), turn-stopping, request-header series and tool-registry diffs are ported, with upstream's cooperative cancellation (phase signal, wake latch, step recovery of unanswered tool calls) and maintenance tasks. Most of the upstream suite is not yet catalogued."
     },
     {
       "upstream": "packages/core/agent-default-model",
       "npm": "@deepseek-ai/dsh-agent-default-model",
-      "module": "harness.core.agent_default_model",
+      "module": "deskagents.core.agent_default_model",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/core/agent-tool-presentation",
       "npm": "@deepseek-ai/dsh-agent-tool-presentation",
-      "module": "harness.core.agent_tool_presentation",
+      "module": "deskagents.core.agent_tool_presentation",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/llm/llm",
       "npm": "@deepseek-ai/dsh-llm",
-      "module": "harness.llm",
+      "module": "deskagents.llm",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported",
+      "note": "Core runtime, stream and registry behavior, including provider model-catalog update notifications, is ported; attachment projection remains in the external attachment plugin."
     },
     {
       "upstream": "packages/llm/llm-retry",
       "npm": "@deepseek-ai/dsh-llm-retry",
-      "module": "harness.llm.retry",
+      "module": "deskagents.llm.retry",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported",
+      "note": "The structural request-error listener serves the agent loop's event; a backoff ends without retrying when the request's signal aborts."
     },
     {
       "upstream": "packages/llm/token-meter",
       "npm": "@deepseek-ai/dsh-token-meter",
-      "module": "harness.llm.token_meter",
+      "module": "deskagents.llm.token_meter",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported",
+      "note": "Attachment occurrences use structural heuristic pricing until the external attachment plugin supplies route projections."
     },
     {
       "upstream": "packages/llm/llm-deepseek",
       "npm": "@deepseek-ai/dsh-llm-deepseek",
-      "module": "harness.llm.deepseek",
+      "module": "deskagents.llm.deepseek",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported",
+      "note": "Messages API transport, native reasoning replay, tools, usage, SSE and provider-neutral failures are ported; attachment/file projection remains in the external attachment family."
     },
     {
       "upstream": "packages/llm/llm-deepseek-api-key",
       "npm": "@deepseek-ai/dsh-llm-deepseek-api-key",
-      "module": "harness.llm.deepseek_api_key",
+      "module": "deskagents.llm.deepseek_api_key",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/llm/deepseek-llm-api-extensions",
       "npm": "@deepseek-ai/dsh-deepseek-llm-api-extensions",
-      "module": "harness.llm.deepseek_llm_api_extensions",
+      "module": "deskagents.llm.deepseek_llm_api_extensions",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
+    },
+    {
+      "upstream": "packages/util/values",
+      "npm": "@deepseek-ai/dsh-util-values",
+      "module": "deskagents.util.values",
+      "milestone": "0.1",
+      "status": "in-progress"
     },
     {
       "upstream": "packages/session/session-format",
       "npm": "@deepseek-ai/dsh-session-format",
-      "module": "harness.session.format",
+      "module": "deskagents.session.format",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
+    },
+    {
+      "upstream": "packages/session/session-format-v1-to-v2",
+      "npm": "@deepseek-ai/dsh-session-format-v1-to-v2",
+      "module": "deskagents.session.format_v1_to_v2",
+      "milestone": "0.1",
+      "status": "in-progress"
+    },
+    {
+      "upstream": "packages/session/session-format-v3-to-v4",
+      "npm": "@deepseek-ai/dsh-session-format-v3-to-v4",
+      "module": "deskagents.session.format_v3_to_v4",
+      "milestone": "0.1",
+      "status": "in-progress"
+    },
+    {
+      "upstream": "packages/session/session-format-catalog",
+      "npm": "@deepseek-ai/dsh-session-format-catalog",
+      "module": "deskagents.session.format_catalog",
+      "milestone": "0.1",
+      "status": "in-progress"
     },
     {
       "upstream": "packages/session/session-persistence",
       "npm": "@deepseek-ai/dsh-session-persistence",
-      "module": "harness.session.persistence",
+      "module": "deskagents.session.persistence",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/session/session-persistence-jsonl",
       "npm": "@deepseek-ai/dsh-session-persistence-jsonl",
-      "module": "harness.session.persistence_jsonl",
+      "module": "deskagents.session.persistence_jsonl",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported",
+      "note": "Current-format v4 persistence including plaintext and Zstandard; v0-v3 migration is intentionally out of scope"
     },
     {
       "upstream": "packages/session/session-projection",
       "npm": "@deepseek-ai/dsh-session-projection",
-      "module": "harness.session.projection",
+      "module": "deskagents.session.projection",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/session/session-checkpoint-policy",
       "npm": "@deepseek-ai/dsh-session-checkpoint-policy",
-      "module": "harness.session.checkpoint_policy",
+      "module": "deskagents.session.checkpoint_policy",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/session/session-title",
       "npm": "@deepseek-ai/dsh-session-title",
-      "module": "harness.session.title",
+      "module": "deskagents.session.title",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported",
+      "note": "Fallback titles and explicit user renames are ported; LLM-generated titles remain an external plugin."
     },
     {
       "upstream": "packages/session/session-log-deepseek",
       "npm": "@deepseek-ai/dsh-session-log-deepseek",
-      "module": "harness.session.log_deepseek",
+      "module": "deskagents.session.log_deepseek",
       "milestone": "0.1",
-      "status": "planned"
+      "status": "ported"
     },
     {
       "upstream": "packages/subprocess/subprocess",
       "npm": "@deepseek-ai/dsh-subprocess",
-      "module": "harness.subprocess",
+      "module": "deskagents.subprocess",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/subprocess/subprocess-local",
       "npm": "@deepseek-ai/dsh-subprocess-local",
-      "module": "harness.subprocess.local",
+      "module": "deskagents.subprocess.local",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/sandbox/sandbox",
       "npm": "@deepseek-ai/dsh-sandbox",
-      "module": "harness.sandbox",
+      "module": "deskagents.sandbox",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/sandbox/sandbox-local",
       "npm": "@deepseek-ai/dsh-sandbox-local",
-      "module": "harness.sandbox.local",
+      "module": "deskagents.sandbox.local",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/sandbox/sandbox-policy",
       "npm": "@deepseek-ai/dsh-sandbox-policy",
-      "module": "harness.sandbox.policy",
+      "module": "deskagents.sandbox.policy",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/fs/fs",
       "npm": "@deepseek-ai/dsh-fs",
-      "module": "harness.fs",
+      "module": "deskagents.fs",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/fs/fs-local",
       "npm": "@deepseek-ai/dsh-fs-local",
-      "module": "harness.fs.local",
+      "module": "deskagents.fs.local",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/fs/fs-sandbox",
       "npm": "@deepseek-ai/dsh-fs-sandbox",
-      "module": "harness.fs.sandbox",
+      "module": "deskagents.fs.sandbox",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/fs/fs-observation-policy",
       "npm": "@deepseek-ai/dsh-fs-observation-policy",
-      "module": "harness.fs.observation_policy",
+      "module": "deskagents.fs.observation_policy",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/fs/tool-fs",
       "npm": "@deepseek-ai/dsh-tool-fs",
-      "module": "harness.fs.tool_fs",
+      "module": "deskagents.fs.tool_fs",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/fs/tool-fs-search",
       "npm": "@deepseek-ai/dsh-tool-fs-search",
-      "module": "harness.fs.tool_fs_search",
+      "module": "deskagents.fs.tool_fs_search",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/shell/shell",
       "npm": "@deepseek-ai/dsh-shell",
-      "module": "harness.shell",
+      "module": "deskagents.shell",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/shell/shell-env",
       "npm": "@deepseek-ai/dsh-shell-env",
-      "module": "harness.shell.env",
+      "module": "deskagents.shell.env",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/shell/bash-local",
       "npm": "@deepseek-ai/dsh-bash-local",
-      "module": "harness.shell.bash_local",
+      "module": "deskagents.shell.bash_local",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/shell/bash-sandbox",
       "npm": "@deepseek-ai/dsh-bash-sandbox",
-      "module": "harness.shell.bash_sandbox",
+      "module": "deskagents.shell.bash_sandbox",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/shell/tool-bash",
       "npm": "@deepseek-ai/dsh-tool-bash",
-      "module": "harness.shell.tool_bash",
+      "module": "deskagents.shell.tool_bash",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/session/working-directory",
       "npm": "@deepseek-ai/dsh-working-directory",
-      "module": "harness.session.working_directory",
+      "module": "deskagents.session.working_directory",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/session/tool-working-directory",
       "npm": "@deepseek-ai/dsh-tool-working-directory",
-      "module": "harness.session.tool_working_directory",
+      "module": "deskagents.session.tool_working_directory",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/attachment/attachment",
       "npm": "@deepseek-ai/dsh-attachment",
-      "module": "harness.attachment",
+      "module": "deskagents.attachment",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/attachment/attachment-local",
       "npm": "@deepseek-ai/dsh-attachment-local",
-      "module": "harness.attachment.local",
+      "module": "deskagents.attachment.local",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/spill/spill",
       "npm": "@deepseek-ai/dsh-spill",
-      "module": "harness.spill",
+      "module": "deskagents.spill",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/spill/spill-local",
       "npm": "@deepseek-ai/dsh-spill-local",
-      "module": "harness.spill.local",
+      "module": "deskagents.spill.local",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/spill/spill-policy",
       "npm": "@deepseek-ai/dsh-spill-policy",
-      "module": "harness.spill.policy",
+      "module": "deskagents.spill.policy",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/guard/timeout-policy",
       "npm": "@deepseek-ai/dsh-tool-call-timeout-policy",
-      "module": "harness.guard.timeout_policy",
+      "module": "deskagents.guard.timeout_policy",
       "milestone": "0.2",
       "status": "planned"
     },
     {
       "upstream": "packages/compaction/compaction",
       "npm": "@deepseek-ai/dsh-compaction",
-      "module": "harness.compaction",
+      "module": "deskagents.compaction",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/compaction/compaction-basic",
       "npm": "@deepseek-ai/dsh-compaction-basic",
-      "module": "harness.compaction.basic",
+      "module": "deskagents.compaction.basic",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/compaction/compaction-tool-result-pruner",
       "npm": "@deepseek-ai/dsh-compaction-tool-result-pruner",
-      "module": "harness.compaction.tool_result_pruner",
+      "module": "deskagents.compaction.tool_result_pruner",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/compaction/compaction-image-offload",
       "npm": "@deepseek-ai/dsh-compaction-image-offload",
-      "module": "harness.compaction.image_offload",
+      "module": "deskagents.compaction.image_offload",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/compaction/command-compact",
       "npm": "@deepseek-ai/dsh-command-compact",
-      "module": "harness.compaction.command_compact",
+      "module": "deskagents.compaction.command_compact",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/context/agent-instructions",
       "npm": "@deepseek-ai/dsh-agent-instructions",
-      "module": "harness.context.agent_instructions",
+      "module": "deskagents.context.agent_instructions",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/context/time-context",
       "npm": "@deepseek-ai/dsh-time-context",
-      "module": "harness.context.time_context",
+      "module": "deskagents.context.time_context",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/interaction/commands",
       "npm": "@deepseek-ai/dsh-commands",
-      "module": "harness.interaction.commands",
+      "module": "deskagents.interaction.commands",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/interaction/user-approval",
       "npm": "@deepseek-ai/dsh-user-approval",
-      "module": "harness.interaction.user_approval",
+      "module": "deskagents.interaction.user_approval",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/interaction/user-questions",
       "npm": "@deepseek-ai/dsh-user-questions",
-      "module": "harness.interaction.user_questions",
+      "module": "deskagents.interaction.user_questions",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/interaction/tool-ask-user",
       "npm": "@deepseek-ai/dsh-tool-ask-user",
-      "module": "harness.interaction.tool_ask_user",
+      "module": "deskagents.interaction.tool_ask_user",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/interaction/permission-presets",
       "npm": "@deepseek-ai/dsh-permission-presets",
-      "module": "harness.interaction.permission_presets",
+      "module": "deskagents.interaction.permission_presets",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/todo/tool-todo",
       "npm": "@deepseek-ai/dsh-tool-todo",
-      "module": "harness.todo.tool_todo",
+      "module": "deskagents.todo.tool_todo",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/plan/plan-mode",
       "npm": "@deepseek-ai/dsh-plan-mode",
-      "module": "harness.plan.mode",
+      "module": "deskagents.plan.mode",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/guard/repeat-tool-reminder",
       "npm": "@deepseek-ai/dsh-repeat-tool-reminder",
-      "module": "harness.guard.repeat_tool_reminder",
+      "module": "deskagents.guard.repeat_tool_reminder",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/session/session-title-llm",
       "npm": "@deepseek-ai/dsh-session-title-llm",
-      "module": "harness.session.title_llm",
+      "module": "deskagents.session.title_llm",
       "milestone": "0.3",
       "status": "planned"
     },
     {
       "upstream": "packages/web/web",
       "npm": "@deepseek-ai/dsh-web",
-      "module": "harness.web",
+      "module": "deskagents.web",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/web/tool-web",
       "npm": "@deepseek-ai/dsh-tool-web",
-      "module": "harness.web.tool_web",
+      "module": "deskagents.web.tool_web",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/web/web-fetch-http",
       "npm": "@deepseek-ai/dsh-web-fetch-http",
-      "module": "harness.web.fetch_http",
+      "module": "deskagents.web.fetch_http",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/web/web-search-deepseek",
       "npm": "@deepseek-ai/dsh-web-search-deepseek",
-      "module": "harness.web.search_deepseek",
+      "module": "deskagents.web.search_deepseek",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/web/web-deepseek-api",
       "npm": "@deepseek-ai/dsh-web-deepseek-api",
-      "module": "harness.web.deepseek_api",
+      "module": "deskagents.web.deepseek_api",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/web/web-search-exa",
       "npm": "@deepseek-ai/dsh-web-search-exa",
-      "module": "harness.web.search_exa",
+      "module": "deskagents.web.search_exa",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/web/web-search-perplexity",
       "npm": "@deepseek-ai/dsh-web-search-perplexity",
-      "module": "harness.web.search_perplexity",
+      "module": "deskagents.web.search_perplexity",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/mcp/mcp-client",
       "npm": "@deepseek-ai/dsh-mcp-client",
-      "module": "harness.mcp.client",
+      "module": "deskagents.mcp.client",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/mcp/mcp-resources",
       "npm": "@deepseek-ai/dsh-mcp-resources",
-      "module": "harness.mcp.resources",
+      "module": "deskagents.mcp.resources",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/skill/skill",
       "npm": "@deepseek-ai/dsh-skill",
-      "module": "harness.skill",
+      "module": "deskagents.skill",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/skill/skill-filesystem",
       "npm": "@deepseek-ai/dsh-skill-filesystem",
-      "module": "harness.skill.filesystem",
+      "module": "deskagents.skill.filesystem",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/skill/tool-skill",
       "npm": "@deepseek-ai/dsh-tool-skill",
-      "module": "harness.skill.tool_skill",
+      "module": "deskagents.skill.tool_skill",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/subagent/subagent",
       "npm": "@deepseek-ai/dsh-subagent",
-      "module": "harness.subagent",
+      "module": "deskagents.subagent",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/subagent/subagent-spawn-in-process",
       "npm": "@deepseek-ai/dsh-subagent-spawn-in-process",
-      "module": "harness.subagent.spawn_in_process",
+      "module": "deskagents.subagent.spawn_in_process",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/subagent/subagent-fork-in-process",
       "npm": "@deepseek-ai/dsh-subagent-fork-in-process",
-      "module": "harness.subagent.fork_in_process",
+      "module": "deskagents.subagent.fork_in_process",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/subagent/tool-subagent",
       "npm": "@deepseek-ai/dsh-tool-subagent",
-      "module": "harness.subagent.tool_subagent",
+      "module": "deskagents.subagent.tool_subagent",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/subagent/tool-subagent-control",
       "npm": "@deepseek-ai/dsh-tool-subagent-control",
-      "module": "harness.subagent.tool_subagent_control",
+      "module": "deskagents.subagent.tool_subagent_control",
       "milestone": "0.4",
       "status": "planned"
     },
     {
       "upstream": "packages/telemetry/otel",
       "npm": "@deepseek-ai/dsh-otel",
-      "module": "harness.telemetry.otel",
+      "module": "deskagents.telemetry.otel",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/session/session-telemetry-otel",
       "npm": "@deepseek-ai/dsh-session-telemetry-otel",
-      "module": "harness.session.telemetry_otel",
+      "module": "deskagents.session.telemetry_otel",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/settings/settings",
       "npm": "@deepseek-ai/dsh-settings",
-      "module": "harness.settings",
+      "module": "deskagents.settings",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/credentials/credentials",
       "npm": "@deepseek-ai/dsh-credentials",
-      "module": "harness.credentials",
+      "module": "deskagents.credentials",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/credentials/credentials-local",
       "npm": "@deepseek-ai/dsh-credentials-local",
-      "module": "harness.credentials.local",
+      "module": "deskagents.credentials.local",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/storage/storage",
       "npm": "@deepseek-ai/dsh-storage",
-      "module": "harness.storage",
+      "module": "deskagents.storage",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/storage/storage-json",
       "npm": "@deepseek-ai/dsh-storage-json",
-      "module": "harness.storage.json",
+      "module": "deskagents.storage.json",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/preset/agent-preset",
       "npm": "@deepseek-ai/dsh-agent-preset",
-      "module": "harness.preset.agent_preset",
+      "module": "deskagents.preset.agent_preset",
       "milestone": "0.5",
       "status": "planned"
     },
     {
       "upstream": "packages/preset/agent-preset-registry",
       "npm": "@deepseek-ai/dsh-agent-preset-registry",
-      "module": "harness.preset.agent_preset_registry",
+      "module": "deskagents.preset.agent_preset_registry",
       "milestone": "0.5",
       "status": "planned"
     }
   ],
   "new_modules": [
     {
-      "module": "harness.bundle",
+      "module": "deskagents.bundle",
       "milestone": "0.1",
       "origin": "new",
-      "note": "YAML bundle rows loaded through the deepseek-cordis Loader; mirrors packages/bundle/*",
-      "status": "planned"
+      "note": "Id-addressed YAML patches and Python builder compile to deepseek-cordis flat Loader rows; JavaScript expressions and grouped trees remain intentionally unsupported.",
+      "status": "ported"
     },
     {
-      "module": "harness.testing",
+      "module": "deskagents.testing",
       "milestone": "0.1",
       "origin": "new",
       "note": "Scripted adapter and contract suites for third-party providers",
-      "status": "planned"
+      "status": "in-progress"
     },
     {
-      "module": "harness.llm.openai",
+      "module": "deskagents.llm.openai",
       "milestone": "0.1",
       "origin": "new",
       "note": "OpenAI-compatible Chat Completions adapter on the llm seam",
-      "status": "planned"
+      "status": "ported"
     },
     {
-      "module": "harness.azure_sessions",
+      "module": "deskagents.azure_sessions",
       "milestone": "0.2",
       "origin": "pepgpt",
       "note": "Azure Container Apps sessions fs and subprocess providers, shaped like packages/ssh/*",
       "status": "planned"
+    }
+  ],
+  "watched": [
+    {
+      "upstream": "packages/boot/config-editor",
+      "used_by": [
+        "packages/core/agent-default-model"
+      ]
+    },
+    {
+      "upstream": "packages/core/tool-executor-ptc",
+      "used_by": [
+        "packages/core/agent-tool-presentation"
+      ]
+    },
+    {
+      "upstream": "packages/identity/anonymous-user-id",
+      "used_by": [
+        "packages/llm/llm-deepseek"
+      ]
+    },
+    {
+      "upstream": "packages/typert/protocol",
+      "used_by": [
+        "packages/core/agent",
+        "packages/llm/llm"
+      ]
+    },
+    {
+      "upstream": "packages/util/atomic-write",
+      "used_by": [
+        "packages/llm/llm-deepseek"
+      ]
+    },
+    {
+      "upstream": "packages/util/brand",
+      "used_by": [
+        "packages/core/agent",
+        "packages/core/agent-loop",
+        "packages/core/session",
+        "packages/core/tools",
+        "packages/llm/llm",
+        "packages/llm/llm-deepseek",
+        "packages/llm/llm-retry",
+        "packages/session/session-log-deepseek",
+        "packages/session/session-persistence",
+        "packages/session/session-title"
+      ]
+    },
+    {
+      "upstream": "packages/util/crypto",
+      "used_by": [
+        "packages/llm/llm"
+      ]
+    },
+    {
+      "upstream": "packages/util/home-paths",
+      "used_by": [
+        "packages/llm/llm-deepseek"
+      ]
+    },
+    {
+      "upstream": "packages/util/launch-environment",
+      "used_by": [
+        "packages/llm/llm-deepseek",
+        "packages/llm/llm-deepseek-api-key"
+      ]
+    },
+    {
+      "upstream": "packages/util/timeout",
+      "used_by": [
+        "packages/llm/llm",
+        "packages/llm/llm-deepseek",
+        "packages/llm/llm-retry",
+        "packages/session/session-persistence"
+      ]
+    },
+    {
+      "upstream": "packages/workspace/workspace",
+      "used_by": [
+        "packages/core/agent"
+      ]
     }
   ]
 }

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA: dict[str, Any] = json.loads((ROOT / "docs" / "upstream.json").read_text())
 MILESTONES = {"0.1", "0.2", "0.3", "0.4", "0.5"}
 STATUSES = {"planned", "in-progress", "ported"}
-MODULE = re.compile(r"harness(\.[a-z][a-z0-9_]*)+$|harness$")
+MODULE = re.compile(r"deskagents(\.[a-z][a-z0-9_]*)+$|deskagents$")
 ENTRIES = [*DATA["packages"], *DATA["new_modules"]]
 
 
@@ -39,6 +39,17 @@ def test_upstream_paths_are_unique_packages() -> None:
 def test_entry_fields(entry: dict[str, Any]) -> None:
     assert entry["milestone"] in MILESTONES
     assert entry["status"] in STATUSES
+
+
+def test_watched_dependencies_are_unmapped_and_used_by_core_packages() -> None:
+    mapped = {entry["upstream"]: entry for entry in DATA["packages"]}
+    watched = [entry["upstream"] for entry in DATA["watched"]]
+    assert len(watched) == len(set(watched))
+    for entry in DATA["watched"]:
+        assert re.fullmatch(r"packages/[a-z0-9-]+/[a-z0-9-]+", entry["upstream"])
+        assert entry["upstream"] not in mapped
+        assert entry["used_by"]
+        assert all(mapped[user]["milestone"] == "0.1" for user in entry["used_by"])
 
 
 def test_ported_modules_name_their_upstream() -> None:

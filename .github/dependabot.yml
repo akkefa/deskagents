@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # New deepseek-cordis releases, including ones outside the pinned range.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: daily
+    allow:
+      - dependency-name: deepseek-cordis
+    commit-message:
+      prefix: deps

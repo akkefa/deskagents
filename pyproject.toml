@@ -1,5 +1,5 @@
 [project]
-name = "cordis-harness"
+name = "deskagents"
 version = "0.1.0.dev0"
 description = "Python implementation of the DeepSeek Harness agent runtime, built on deepseek-cordis"
 readme = "README.md"
@@ -8,9 +8,11 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [{name = "Ikram Ali"}]
 dependencies = [
-  "deepseek-cordis>=0.1.1,<0.2",
+  "deepseek-cordis>=0.2.0,<0.3",
   "pydantic>=2.7,<3",
   "pyyaml>=6,<7",
+  "typing-extensions>=4.12,<5",
+  "zstandard>=0.23,<1",
 ]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
@@ -24,14 +26,16 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Each extra is declared in the phase that adds the module needing it; see docs/PLAN.md.
+deepseek = ["httpx>=0.27,<1"]
+openai = ["httpx>=0.27,<1"]
+all = ["httpx>=0.27,<1"]
 
 [project.urls]
-Homepage = "https://github.com/akkefa/harness"
-Repository = "https://github.com/akkefa/harness"
-Issues = "https://github.com/akkefa/harness/issues"
-Documentation = "https://github.com/akkefa/harness/tree/main/docs"
-Changelog = "https://github.com/akkefa/harness/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/akkefa/deskagents"
+Repository = "https://github.com/akkefa/deskagents"
+Issues = "https://github.com/akkefa/deskagents/issues"
+Documentation = "https://github.com/akkefa/deskagents/tree/main/docs"
+Changelog = "https://github.com/akkefa/deskagents/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling>=1.27,<2"]
@@ -40,7 +44,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 # Twine 6.2 validates through core metadata 2.4; retain PEP 639 license fields.
 core-metadata-version = "2.4"
-packages = ["src/harness"]
+packages = ["src/deskagents"]
 
 [tool.hatch.build.targets.sdist]
 core-metadata-version = "2.4"
@@ -50,6 +54,7 @@ include = [
   "/tests",
   "/docs",
   "/scripts",
+  "/examples",
   "/pyproject.toml",
   "/uv.lock",
   "/README.md",
@@ -62,7 +67,8 @@ exclude = ["**/__pycache__", "**/*.pyc", "**/.pytest_cache", "**/.mypy_cache", "
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--strict-config --strict-markers"
+pythonpath = ["tests"]
+addopts = "--strict-config --strict-markers --import-mode=importlib"
 markers = [
   "upstream(source): behavior ported from a pinned upstream test, given as 'path::case title'",
 ]
@@ -80,6 +86,8 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 python_version = "3.11"
 strict = true
 files = ["src", "tests", "scripts"]
+mypy_path = "src:tests:scripts:examples/external_plugin/src"
+explicit_package_bases = true
 
 [dependency-groups]
 # Opt-in tools for checking metadata and the package-index long description.

@@ -1,17 +1,21 @@
 """The deepseek-cordis behaviour the harness relies on, checked against the installed version.
 
-docs/cordis-alignment.md lists where upstream packages use each item. Gaps are strict
-xfails: when deepseek-cordis gains the feature the test passes, fails as XPASS, and
-points here to remove the marker and the workaround.
+docs/cordis-alignment.md lists where upstream packages use each item. The core-facing
+gaps closed in deepseek-cordis 0.2.0 are ordinary regression tests here; advanced
+Loader composition remains outside the core compatibility profile.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Iterator
 
 import pytest
-from deepseek_cordis import Context, Fiber, FiberState, Service
+from deepseek_cordis import Context, CordisError, Fiber, FiberState, Service, current_context
+from deepseek_cordis.loader import Loader, PluginEntry
+
+from deskagents._cordis import emit_contained
 
 pytestmark = pytest.mark.asyncio
 
@@ -85,49 +89,106 @@ async def test_fiber_states_match_upstream() -> None:
     assert {"PENDING", "LOADING", "ACTIVE", "FAILED", "UNLOADING", "DISPOSED"} <= names
 
 
-# Gaps (docs/cordis-alignment.md). Remove a marker when its feature lands.
-
-
-@pytest.mark.xfail(strict=True, reason="gap G1: Events.dispatch is private (_dispatch)")
-async def test_events_dispatch_is_public() -> None:
+async def test_events_dispatch_returns_the_uninvoked_listener_snapshot() -> None:
     root = Context()
-    root.on("probe/dispatch", lambda value: value)
-    callbacks = root.events.dispatch("emit", "probe/dispatch", (1,))  # type: ignore[attr-defined]
-    assert [callback(1) for callback in callbacks] == [1]
+    seen: list[int] = []
+    root.on("probe/dispatch", seen.append)
+
+    callbacks = root.events.dispatch("emit", "probe/dispatch", (1,))
+    assert seen == []
+    for callback in callbacks:
+        callback(1)
+    assert seen == [1]
     await root.fiber.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="gap G2: Fiber.assert_active is missing")
-async def test_fiber_assert_active() -> None:
+async def test_fiber_assert_active_rejects_a_disposed_fiber() -> None:
     root = Context()
-    root.fiber.assert_active()  # type: ignore[attr-defined]
+    child = await root.plugin(lambda _ctx, _config: None)
+    child.assert_active()
+    await child.dispose()
+    with pytest.raises(CordisError, match="INACTIVE_EFFECT"):
+        child.assert_active()
     await root.fiber.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="gap G3: internal/status is not emitted")
-async def test_internal_status_is_emitted() -> None:
+async def test_internal_status_reports_each_state_change() -> None:
     root = Context()
     changes: list[tuple[Fiber, FiberState]] = []
     root.on("internal/status", lambda fiber, old: changes.append((fiber, old)), global_=True)
 
-    def plugin(ctx: Context, config: object) -> None:
-        return None
-
-    fiber = await root.plugin(plugin)
+    fiber = await root.plugin(lambda _ctx, _config: None)
     await fiber.dispose()
-    assert changes
+    assert [old for changed, old in changes if changed is fiber][:2] == [
+        FiberState.PENDING,
+        FiberState.LOADING,
+    ]
     await root.fiber.dispose()
 
 
-@pytest.mark.xfail(strict=True, reason="gap G3: internal/plugin is not emitted")
-async def test_internal_plugin_is_emitted() -> None:
+async def test_internal_plugin_publishes_creation_and_disposal() -> None:
     root = Context()
     fibers: list[Fiber] = []
     root.on("internal/plugin", fibers.append, global_=True)
 
-    def plugin(ctx: Context, config: object) -> None:
-        return None
+    fiber = await root.plugin(lambda _ctx, _config: None)
+    assert fibers == [fiber]
+    await fiber.dispose()
+    assert fibers == [fiber, fiber]
+    await root.fiber.dispose()
 
-    fiber = await root.plugin(plugin)
-    assert fiber in fibers
+
+async def test_loader_fibers_expose_their_entry() -> None:
+    root = Context()
+    entry = PluginEntry(id="probe", plugin=lambda _ctx, _config: None)
+    loaded = await Loader(root).load([entry])
+    assert loaded.fibers["probe"].entry is entry
+    await root.fiber.dispose()
+
+
+async def test_waterfall_next_is_single_use() -> None:
+    root = Context()
+    root.on("probe/twice", lambda next_: (next_(), next_()))
+    with pytest.raises(RuntimeError, match="next\\(\\) called multiple times"):
+        root.waterfall("probe/twice", next_=lambda: None)
+    await root.fiber.dispose()
+
+
+# Contained notifications (deskagents._cordis), the upstream pattern built on dispatch.
+
+
+async def test_emit_contained_isolates_sync_and_async_listener_failures(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    root = Context()
+    seen: list[str] = []
+
+    def broken(value: str) -> None:
+        raise ValueError("sync failure")
+
+    async def rejected(value: str) -> None:
+        raise ValueError("async failure")
+
+    root.on("probe/notify", broken)
+    root.on("probe/notify", rejected)
+    root.on("probe/notify", seen.append)
+    with caplog.at_level(logging.WARNING, logger="deskagents._cordis"):
+        emit_contained(root, "probe/notify", "value", describe="probe listener")
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+    assert seen == ["value"]
+    assert [record.getMessage() for record in caplog.records] == [
+        "probe listener threw: sync failure",
+        "probe listener rejected: async failure",
+    ]
+    await root.fiber.dispose()
+
+
+async def test_emit_contained_runs_listeners_in_the_emitter_scope() -> None:
+    root = Context()
+    child = root.extend()
+    callers: list[Context | None] = []
+    root.on("probe/scope", lambda: callers.append(current_context()))
+    emit_contained(child, "probe/scope")
+    assert callers == [child]
     await root.fiber.dispose()

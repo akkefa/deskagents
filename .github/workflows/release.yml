@@ -54,7 +54,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Needs a PyPI Trusted Publisher for cordis-harness bound to this workflow and the
+  # Needs a PyPI Trusted Publisher for deskagents bound to this workflow and the
   # "pypi" environment. No API token is stored in the repository.
   publish:
     needs: build
@@ -62,7 +62,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: pypi
-      url: https://pypi.org/project/cordis-harness/
+      url: https://pypi.org/project/deskagents/
     permissions:
       id-token: write
     steps:

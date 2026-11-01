@@ -13,7 +13,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-import harness
+import deskagents
 
 
 def normalize_requirement(requirement: str) -> tuple[str, frozenset[str]]:
@@ -25,8 +25,8 @@ def normalize_requirement(requirement: str) -> tuple[str, frozenset[str]]:
     return name, specifiers
 
 
-assert harness.__file__ is not None
-installed = Path(harness.__file__).resolve()
+assert deskagents.__file__ is not None
+installed = Path(deskagents.__file__).resolve()
 assert installed.is_relative_to(Path(sys.prefix).resolve()), "imported from the checkout"
 with (Path(__file__).resolve().parents[1] / "pyproject.toml").open("rb") as stream:
     project = tomllib.load(stream)["project"]
@@ -37,8 +37,8 @@ requires = importlib.metadata.requires(expected_name) or []
 core = {normalize_requirement(r) for r in requires if "extra ==" not in r}
 declared = {normalize_requirement(r) for r in project["dependencies"]}
 assert core == declared, "installed requirements differ from pyproject"
-assert importlib.resources.files("harness").joinpath("py.typed").is_file()
-assert all(hasattr(harness, name) for name in harness.__all__)
+assert importlib.resources.files("deskagents").joinpath("py.typed").is_file()
+assert all(hasattr(deskagents, name) for name in deskagents.__all__)
 direct_url_text = importlib.metadata.distribution(expected_name).read_text("direct_url.json")
 assert direct_url_text is not None
 direct_url = json.loads(direct_url_text)

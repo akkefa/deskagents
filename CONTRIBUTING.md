@@ -1,6 +1,6 @@
-# Contributing to cordis-harness
+# Contributing to deskagents
 
-cordis-harness implements DeepSeek Harness in Python. The pinned upstream TypeScript
+deskagents implements DeepSeek Harness in Python. The pinned upstream TypeScript
 source is the specification. Start with [the plan](docs/PLAN.md) and
 [how upstream is tracked](docs/upstream.md).
 
@@ -37,7 +37,7 @@ Keep event names, tool names, tool schemas and session fields exactly as upstrea
 has them; sessions and model-visible output must match. Python-specific choices
 follow the translation rules in the plan.
 
-A module may import only the standard library, `harness`, the core dependencies, or
+A module may import only the standard library, `deskagents`, the core dependencies, or
 the dependencies of an extra registered for that module in
 `tests/boundary/test_import_boundaries.py`.
 

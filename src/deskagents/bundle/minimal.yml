@@ -1,0 +1,29 @@
+- insert:
+    - id: llm
+      name: deskagents.llm
+    - id: sessions
+      name: deskagents.core.session
+    - id: session-projections
+      name: deskagents.session.projection
+    - id: session-title
+      name: deskagents.session.title
+      config:
+        fallbackMaxWords: 5
+        fallbackMaxBytes: 40
+        maxTitleBytes: 80
+    - id: system-prompt
+      name: deskagents.core.system_prompt
+      config:
+        personaPrefix: You are a helpful assistant.
+    - id: tools
+      name: deskagents.core.tools
+    - id: native-tools
+      name: deskagents.core.tool_executor_native
+    - id: agents
+      name: deskagents.core.agent
+    - id: agent-loop
+      name: deskagents.core.agent_loop
+      config:
+        agents: []
+    - id: session-checkpoint-policy
+      name: deskagents.session.checkpoint_policy

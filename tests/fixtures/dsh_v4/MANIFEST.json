@@ -1,0 +1,17 @@
+{
+  "upstreamCommit": "ce7073d51254c26cd63b22a60835b8f948deb447",
+  "sessionId": "dsh-v4-fixture",
+  "eventCount": 2,
+  "artifacts": [
+    {
+      "compression": "none",
+      "path": "none/--fixture--/dsh-v4-fixture/session.v4.jsonl",
+      "sha256": "a108de4a9609758c0abcf95baff328d283e202f0723c788b93ab1b7e63544380"
+    },
+    {
+      "compression": "zstd",
+      "path": "zstd/--fixture--/dsh-v4-fixture/session.v4.jsonl.zstd",
+      "sha256": "9c1a77a8930de9d9ef64447da241de00b32217c9a7a61db8cd8346cbb25fba0a"
+    }
+  ]
+}
